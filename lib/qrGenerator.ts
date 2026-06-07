@@ -8,7 +8,7 @@ export const generateQRCode = async (eventCode: string): Promise<string> => {
       margin: 2,
       color: {
         dark: '#000000',
-        light: '#FFFFFF'
+        light: '#FFFFFF',
       },
     });
     return qrCodeUrl;

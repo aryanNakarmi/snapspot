@@ -9,8 +9,7 @@ export const metadata: Metadata = {
   title: 'SnapSpot - Event Photo Sharing',
   description: 'Share event photos in real-time with QR codes',
 }
-
-export default function RootLayout({
+xport default function RootLayout({
   children,
 }: {
   children: React.ReactNode
