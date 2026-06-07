@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = 'snapspot_uploads'; // We'll create this in Cloudinary
+const CLOUDINARY_UPLOAD_PRESET = 'snapspot_uploads'; 
 
 export const uploadToCloudinary = async (file: File) => {
   try {

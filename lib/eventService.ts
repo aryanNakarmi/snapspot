@@ -24,7 +24,7 @@ export const generateEventCode = () => {
 // Create event
 export const createEvent = async (
   organizerId: string,
-  eventName: string
+  eventName: string,
   eventDescription?: string
 ) => {
   try {
