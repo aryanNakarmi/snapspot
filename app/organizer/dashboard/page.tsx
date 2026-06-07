@@ -39,12 +39,19 @@ export default function OrganizerDashboard() {
     setLoading(true);
     try {
       const userEvents = await getOrganizerEvents(user.uid);
-      setEvents(userEvents);
+      
+      // Make sure it's an array
+      const eventsArray = Array.isArray(userEvents) ? userEvents : [];
+      setEvents(eventsArray as Event[]);
 
       // Generate QR codes
       const codes: Record<string, string> = {};
-      for (const event of userEvents) {
-        codes[event.eventCode] = await generateQRCode(event.eventCode);
+      for (const event of eventsArray) {
+        try {
+          codes[event.eventCode] = await generateQRCode(event.eventCode);
+        } catch (err) {
+          console.error('Error generating QR for', event.eventCode, err);
+        }
       }
       setQrCodes(codes);
     } catch (error) {
@@ -138,13 +145,15 @@ export default function OrganizerDashboard() {
                 className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition"
               >
                 {/* QR Code */}
-                <div className="mb-4 p-4 bg-gray-100 rounded-lg flex items-center justify-center">
-                  {qrCodes[event.eventCode] && (
+                <div className="mb-4 p-4 bg-gray-100 rounded-lg flex items-center justify-center h-40">
+                  {qrCodes[event.eventCode] ? (
                     <img
                       src={qrCodes[event.eventCode]}
                       alt="QR Code"
                       className="w-32 h-32"
                     />
+                  ) : (
+                    <p className="text-gray-400">Generating QR...</p>
                   )}
                 </div>
 
@@ -176,7 +185,7 @@ export default function OrganizerDashboard() {
                 <div className="flex gap-2">
                   <Link
                     href={`/organizer/event/${event.eventId}`}
-                    className="flex-1 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-center"
+                    className="flex-1 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-center text-sm"
                   >
                     View Event
                   </Link>
@@ -184,14 +193,14 @@ export default function OrganizerDashboard() {
                     onClick={() =>
                       downloadQRCode(event.eventCode, event.eventName)
                     }
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
                     title="Download QR Code"
                   >
                     ⬇️
                   </button>
                   <button
                     onClick={() => handleDeleteEvent(event.eventId)}
-                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
+                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-sm"
                     title="Delete Event"
                   >
                     🗑️
