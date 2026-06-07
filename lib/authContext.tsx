@@ -8,7 +8,7 @@ import {
 } from 'firebase/auth';
 import { auth } from './firebase';
 
-interface AuthContextType 
+interface AuthContextType {
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
