@@ -12,6 +12,7 @@ interface AuthFormProps {
   mode: 'signin' | 'signup';
 }
 
+
 export default function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
