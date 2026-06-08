@@ -10,6 +10,7 @@ interface Photo {
   uploadedAt: any;
 }
 
+
 interface PhotoGalleryProps {
   eventId: string;
   organizerId?: string;
