@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import AuthForm from '@/components/AuthForm';
 
+
 export default function SignIn() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
