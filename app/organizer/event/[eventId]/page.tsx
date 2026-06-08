@@ -15,7 +15,7 @@ interface Event {
   photoCount: number;
   createdAt: any;
 }
-
+  
 export default function OrganizerDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,7 @@ export default function OrganizerDashboard() {
 
     loadEvents();
   }, [user, authLoading]);
-
+ 
   const loadEvents = async () => {
     if (!user) return;
     setLoading(true);
