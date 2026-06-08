@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/authContext';
 import { getOrganizerEvents, deleteEvent } from '@/lib/eventService';
 import { generateQRCode, downloadQRCode } from '@/lib/qrGenerator';
 
+
 interface Event {
   eventId: string;
   eventCode: string;
