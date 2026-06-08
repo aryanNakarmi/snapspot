@@ -9,6 +9,7 @@ interface CameraCaptureProps {
   onUploadSuccess: () => void;
 }
 
+
 export default function CameraCapture({
   eventId,
   onUploadSuccess,
