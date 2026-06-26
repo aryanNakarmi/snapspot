@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
-  
+import crypto from 'crypto';
+
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_API_KEY = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
 const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
@@ -16,19 +17,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const timestamp = Date.now().toString();
     const params = new URLSearchParams({
       public_id: publicId,
       api_key: CLOUDINARY_API_KEY!,
-      timestamp: Date.now().toString(),
+      timestamp,
     });
 
-    // Create signature
-    const crypto = require('crypto');
+    // Create signature using ES module import
     const signature = crypto
       .createHash('sha1')
-      .update(
-        `public_id=${publicId}&timestamp=${Date.now()}${CLOUDINARY_API_SECRET}`
-      )
+      .update(`public_id=${publicId}&timestamp=${timestamp}${CLOUDINARY_API_SECRET}`)
       .digest('hex');
 
     params.append('signature', signature);
