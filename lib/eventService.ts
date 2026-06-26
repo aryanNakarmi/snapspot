@@ -12,6 +12,7 @@ import {
   serverTimestamp,
   onSnapshot,
   orderBy,
+  increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { v4 as uuidv4 } from 'uuid';
@@ -139,6 +140,14 @@ export const addPhoto = async (
       ...photoData,
       uploadedAt: serverTimestamp(),
     });
+
+    // Increment photoCount on the event
+    const eventRef = doc(db, 'events', eventId);
+    await updateDoc(eventRef, {
+      photoCount: increment(1),
+      updatedAt: serverTimestamp(),
+    });
+
     return docRef.id;
   } catch (error) {
     console.error('Error adding photo:', error);
@@ -194,6 +203,13 @@ export const subscribeToPhotos = (
 export const deletePhoto = async (eventId: string, photoId: string) => {
   try {
     await deleteDoc(doc(db, 'events', eventId, 'photos', photoId));
+
+    // Decrement photoCount
+    const eventRef = doc(db, 'events', eventId);
+    await updateDoc(eventRef, {
+      photoCount: increment(-1),
+      updatedAt: serverTimestamp(),
+    });
   } catch (error) {
     console.error('Error deleting photo:', error);
     throw error;
