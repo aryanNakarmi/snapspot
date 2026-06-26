@@ -8,6 +8,19 @@ import {
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
+const FRIENDLY_ERRORS: Record<string, string> = {
+  'auth/invalid-credential': 'Invalid email or password. Please try again.',
+  'auth/user-not-found': 'No account found with this email address.',
+  'auth/wrong-password': 'Incorrect password. Please try again.',
+  'auth/email-already-in-use': 'An account with this email already exists.',
+  'auth/weak-password': 'Password should be at least 6 characters.',
+  'auth/invalid-email': 'Please enter a valid email address.',
+  'auth/too-many-requests': 'Too many attempts. Please try again later.',
+  'auth/network-request-failed': 'Network error. Please check your connection.',
+  'auth/user-disabled': 'This account has been disabled.',
+  'auth/operation-not-allowed': 'Email/password sign-in is not enabled.',
+};
+
 interface AuthFormProps {
   mode: 'signin' | 'signup';
 }
@@ -40,7 +53,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
         router.push('/organizer/dashboard');
       }
     } catch (err: any) {
-      setError(err.message);
+      // Map Firebase error codes to user-friendly messages
+      const errorCode = err?.code || '';
+      setError(FRIENDLY_ERRORS[errorCode] || err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }

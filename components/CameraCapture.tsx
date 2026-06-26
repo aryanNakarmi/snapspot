@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { uploadToCloudinary } from '@/lib/cloudinaryService';
 import { addPhoto } from '@/lib/eventService';
+import { queuePhoto, setupOnlineListener } from '@/lib/offlineQueue';
 
 interface CameraCaptureProps {
   eventId: string;
@@ -18,6 +19,7 @@ export default function CameraCapture({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [offlineQueued, setOfflineQueued] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,6 +37,7 @@ export default function CameraCapture({
     }
 
     setError('');
+    setOfflineQueued(false);
     setSelectedFile(file);
 
     // Create preview
@@ -50,8 +53,23 @@ export default function CameraCapture({
 
     setUploading(true);
     setError('');
+    setOfflineQueued(false);
 
     try {
+      // Check if online
+      if (!navigator.onLine) {
+        // Queue for later upload
+        await queuePhoto(eventId, selectedFile);
+        setPreview(null);
+        setSelectedFile(null);
+        setOfflineQueued(true);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        onUploadSuccess();
+        return;
+      }
+
       // Upload to Cloudinary
       const cloudinaryData = await uploadToCloudinary(selectedFile);
 
@@ -71,7 +89,21 @@ export default function CameraCapture({
 
       onUploadSuccess();
     } catch (err: any) {
-      setError(err.message || 'Upload failed');
+      // If online upload failed, try to queue for later
+      if (!navigator.onLine || err.message?.includes('Network')) {
+        try {
+          await queuePhoto(eventId, selectedFile);
+          setPreview(null);
+          setSelectedFile(null);
+          setOfflineQueued(true);
+          onUploadSuccess();
+          return;
+        } catch (queueErr) {
+          setError('Failed to save photo. Please try again.');
+        }
+      } else {
+        setError(err.message || 'Upload failed');
+      }
     } finally {
       setUploading(false);
     }
@@ -107,6 +139,7 @@ export default function CameraCapture({
               onClick={() => {
                 setPreview(null);
                 setSelectedFile(null);
+                setOfflineQueued(false);
               }}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
             >
@@ -123,7 +156,29 @@ export default function CameraCapture({
         </div>
       )}
 
-      {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+      {error && (
+        <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+
+      {offlineQueued && (
+        <div className="p-3 bg-amber-100 text-amber-700 rounded-lg text-sm flex items-center gap-2">
+          <span>📡</span>
+          <span>
+            Photo saved! It will be uploaded automatically when you are back online.
+          </span>
+        </div>
+      )}
+
+      {!navigator.onLine && !preview && (
+        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm flex items-center gap-2">
+          <span>⚠️</span>
+          <span>
+            You are offline. Photos will be queued and uploaded when connection is restored.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
