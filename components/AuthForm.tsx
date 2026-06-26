@@ -25,7 +25,6 @@ interface AuthFormProps {
   mode: 'signin' | 'signup';
 }
 
-
 export default function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,7 +52,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
         router.push('/organizer/dashboard');
       }
     } catch (err: any) {
-      // Map Firebase error codes to user-friendly messages
       const errorCode = err?.code || '';
       setError(FRIENDLY_ERRORS[errorCode] || err.message || 'An unexpected error occurred');
     } finally {
@@ -62,63 +60,103 @@ export default function AuthForm({ mode }: AuthFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          Email address
         </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder="you@example.com"
-        />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+          </div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow placeholder:text-slate-400"
+            placeholder="you@example.com"
+          />
+        </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">
           Password
         </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder="••••••••"
-        />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow placeholder:text-slate-400"
+            placeholder="Enter your password"
+          />
+        </div>
       </div>
 
       {mode === 'signup' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Confirm Password
           </label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="••••••••"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow placeholder:text-slate-400"
+              placeholder="Confirm your password"
+            />
+          </div>
         </div>
       )}
 
-      {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+      {error && (
+        <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-100 rounded-lg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500 mt-0.5 shrink-0">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50"
+        className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-semibold rounded-lg hover:shadow-md hover:shadow-indigo-200/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        {loading
-          ? 'Loading...'
-          : mode === 'signin'
-            ? 'Sign In'
-            : 'Sign Up'}
+        {loading ? (
+          <>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+            </svg>
+            Please wait...
+          </>
+        ) : mode === 'signin' ? (
+          'Sign In'
+        ) : (
+          'Create Account'
+        )}
       </button>
     </form>
   );

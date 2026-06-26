@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { uploadToCloudinary } from '@/lib/cloudinaryService';
 import { addPhoto } from '@/lib/eventService';
-import { queuePhoto, setupOnlineListener } from '@/lib/offlineQueue';
+import { queuePhoto } from '@/lib/offlineQueue';
 
 interface CameraCaptureProps {
   eventId: string;
@@ -25,7 +25,6 @@ export default function CameraCapture({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file
     if (!file.type.startsWith('image/')) {
       setError('Please select an image file');
       return;
@@ -40,7 +39,6 @@ export default function CameraCapture({
     setOfflineQueued(false);
     setSelectedFile(file);
 
-    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setPreview(e.target?.result as string);
@@ -56,9 +54,7 @@ export default function CameraCapture({
     setOfflineQueued(false);
 
     try {
-      // Check if online
       if (!navigator.onLine) {
-        // Queue for later upload
         await queuePhoto(eventId, selectedFile);
         setPreview(null);
         setSelectedFile(null);
@@ -70,17 +66,14 @@ export default function CameraCapture({
         return;
       }
 
-      // Upload to Cloudinary
       const cloudinaryData = await uploadToCloudinary(selectedFile);
 
-      // Save to Firestore
       await addPhoto(eventId, {
         cloudinaryUrl: cloudinaryData.url,
         cloudinaryPublicId: cloudinaryData.publicId,
         uploaderDevice: navigator.userAgent,
       });
 
-      // Reset state
       setPreview(null);
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -89,7 +82,6 @@ export default function CameraCapture({
 
       onUploadSuccess();
     } catch (err: any) {
-      // If online upload failed, try to queue for later
       if (!navigator.onLine || err.message?.includes('Network')) {
         try {
           await queuePhoto(eventId, selectedFile);
@@ -123,60 +115,99 @@ export default function CameraCapture({
       {!preview ? (
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition flex items-center justify-center gap-2"
+          className="w-full py-3 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2"
         >
-          <span>📸</span> Take Photo
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          Take Photo
         </button>
       ) : (
-        <div className="space-y-3">
-          <img
-            src={preview}
-            alt="Preview"
-            className="w-full max-h-96 object-contain rounded-lg"
-          />
-          <div className="flex gap-2">
+        <div className="space-y-4">
+          <div className="relative rounded-lg overflow-hidden bg-slate-100">
+            <img
+              src={preview}
+              alt="Preview"
+              className="w-full max-h-80 object-contain"
+            />
+          </div>
+          <div className="flex gap-3">
             <button
               onClick={() => {
                 setPreview(null);
                 setSelectedFile(null);
                 setOfflineQueued(false);
               }}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              className="flex-1 px-4 py-2.5 border border-slate-200 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {uploading ? 'Uploading...' : 'Upload'}
+              {uploading ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+                  </svg>
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  Upload
+                </>
+              )}
             </button>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-          {error}
+        <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-100 rounded-lg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500 mt-0.5 shrink-0">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+          <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
       {offlineQueued && (
-        <div className="p-3 bg-amber-100 text-amber-700 rounded-lg text-sm flex items-center gap-2">
-          <span>📡</span>
-          <span>
-            Photo saved! It will be uploaded automatically when you are back online.
-          </span>
+        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mt-0.5 shrink-0">
+            <line x1="1" y1="1" x2="23" y2="23" />
+            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+            <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+            <line x1="12" y1="20" x2="12.01" y2="20" />
+          </svg>
+          <p className="text-sm text-amber-700">
+            Photo saved. It will be uploaded automatically when you are back online.
+          </p>
         </div>
       )}
 
       {!navigator.onLine && !preview && (
-        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm flex items-center gap-2">
-          <span>⚠️</span>
-          <span>
+        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mt-0.5 shrink-0">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <p className="text-sm text-amber-700">
             You are offline. Photos will be queued and uploaded when connection is restored.
-          </span>
+          </p>
         </div>
       )}
     </div>
