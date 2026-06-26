@@ -34,7 +34,7 @@ export default function EventPage() {
       if (!eventData) {
         setError('Event not found. Please check the event code.');
       } else {
-        setEvent(eventData);
+        setEvent(eventData as Event);
       }
     } catch (err) {
       setError('Failed to load event');

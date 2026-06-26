@@ -1,27 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/authContext';
-import { getOrganizerEvents, deleteEvent } from '@/lib/eventService';
-import { generateQRCode, downloadQRCode } from '@/lib/qrGenerator';
+import { getEventById } from '@/lib/eventService';
+import PhotoGallery from '@/components/PhotoGallery';
 
 interface Event {
   eventId: string;
   eventCode: string;
   eventName: string;
   eventDescription: string;
+  organizerId: string;
   photoCount: number;
   createdAt: any;
 }
 
-export default function OrganizerDashboard() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
-  const { user, loading: authLoading, signOut } = useAuth();
+export default function OrganizerEventPage() {
+  const params = useParams();
   const router = useRouter();
+  const eventId = params.eventId as string;
+  const { user, loading: authLoading } = useAuth();
+  const [event, setEvent] = useState<Event | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (authLoading) return;
@@ -31,43 +33,30 @@ export default function OrganizerDashboard() {
       return;
     }
 
-    loadEvents();
-  }, [user, authLoading]);
+    loadEvent();
+  }, [user, authLoading, eventId]);
 
-  const loadEvents = async () => {
-    if (!user) return;
+  const loadEvent = async () => {
     setLoading(true);
     try {
-      const userEvents = await getOrganizerEvents(user.uid);
-      setEvents(userEvents);
-
-      // Generate QR codes
-      const codes: Record<string, string> = {};
-      for (const event of userEvents) {
-        codes[event.eventCode] = await generateQRCode(event.eventCode);
+      const eventData = await getEventById(eventId);
+      if (!eventData) {
+        router.push('/organizer/dashboard');
+        return;
       }
-      setQrCodes(codes);
+      setEvent(eventData as Event);
     } catch (error) {
-      console.error('Failed to load events:', error);
+      console.error('Failed to load event:', error);
+      router.push('/organizer/dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
-
-    try {
-      await deleteEvent(eventId);
-      setEvents(events.filter((e) => e.eventId !== eventId));
-    } catch (error) {
-      alert('Failed to delete event');
+  const copyEventLink = () => {
+    if (event) {
+      navigator.clipboard.writeText(`${window.location.origin}/event/${event.eventCode}`);
     }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/');
   };
 
   if (authLoading || loading) {
@@ -75,132 +64,82 @@ export default function OrganizerDashboard() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="inline-block animate-spin mb-4">⏳</div>
-          <p>Loading...</p>
+          <p>Loading event...</p>
         </div>
       </div>
     );
   }
+
+  if (!event) return null;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       {/* Header */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                SnapSpot
-              </h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/organizer/dashboard"
+                className="text-gray-600 hover:text-gray-800 transition"
+              >
+                ← Dashboard
+              </Link>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">S</span>
+                </div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  SnapSpot
+                </h1>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold mb-1">{event.eventName}</h2>
+              {event.eventDescription && (
+                <p className="text-gray-600">{event.eventDescription}</p>
+              )}
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-gray-600">{user?.email}</span>
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-              >
-                Sign Out
-              </button>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-indigo-600">
+                  {event.photoCount || 0}
+                </p>
+                <p className="text-sm text-gray-600">Photos</p>
+              </div>
+              <div className="bg-gray-100 px-4 py-2 rounded-lg">
+                <p className="text-sm text-gray-600">Event Code</p>
+                <p className="text-lg font-mono font-bold">{event.eventCode}</p>
+              </div>
             </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              onClick={copyEventLink}
+              className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-sm flex items-center gap-2"
+            >
+              📋 Copy Event Link
+            </button>
+            <Link
+              href={`/event/${event.eventCode}`}
+              target="_blank"
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm flex items-center gap-2"
+            >
+              🔗 Open Event Page
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-12">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold">My Events</h2>
-          <Link
-            href="/organizer/create"
-            className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition"
-          >
-            + Create Event
-          </Link>
-        </div>
-
-        {events.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-4xl mb-4">📭</p>
-            <p className="text-xl text-gray-600 mb-8">
-              You haven't created any events yet
-            </p>
-            <Link
-              href="/organizer/create"
-              className="inline-block px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition"
-            >
-              Create Your First Event
-            </Link>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((event) => (
-              <div
-                key={event.eventId}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition"
-              >
-                {/* QR Code */}
-                <div className="mb-4 p-4 bg-gray-100 rounded-lg flex items-center justify-center">
-                  {qrCodes[event.eventCode] && (
-                    <img
-                      src={qrCodes[event.eventCode]}
-                      alt="QR Code"
-                      className="w-32 h-32"
-                    />
-                  )}
-                </div>
-
-                {/* Event Info */}
-                <h3 className="text-xl font-bold mb-2">{event.eventName}</h3>
-                {event.eventDescription && (
-                  <p className="text-gray-600 text-sm mb-4">
-                    {event.eventDescription}
-                  </p>
-                )}
-
-                {/* Stats */}
-                <div className="flex gap-4 mb-4 py-4 border-y">
-                  <div>
-                    <p className="text-2xl font-bold text-indigo-600">
-                      {event.photoCount || 0}
-                    </p>
-                    <p className="text-sm text-gray-600">Photos</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-mono bg-gray-100 px-3 py-2 rounded">
-                      {event.eventCode}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">Event Code</p>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <Link
-                    href={`/organizer/event/${event.eventId}`}
-                    className="flex-1 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-center"
-                  >
-                    View Event
-                  </Link>
-                  <button
-                    onClick={() =>
-                      downloadQRCode(event.eventCode, event.eventName)
-                    }
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                    title="Download QR Code"
-                  >
-                    ⬇️
-                  </button>
-                  <button
-                    onClick={() => handleDeleteEvent(event.eventId)}
-                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
-                    title="Delete Event"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Photo Gallery */}
+      <div className="container mx-auto px-4 py-8">
+        <h3 className="text-2xl font-bold mb-6">📸 Event Photos</h3>
+        <PhotoGallery eventId={event.eventId} organizerId={user?.uid} />
       </div>
     </main>
   );
