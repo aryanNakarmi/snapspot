@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getEventByCode } from '@/lib/eventService';
+import { getEventByCode, getEventPhotos } from '@/lib/eventService';
 import CameraCapture from '@/components/CameraCapture';
 import PhotoGallery from '@/components/PhotoGallery';
 import Link from 'next/link';
+import { useToast } from '@/components/Toast';
+import { CopyIcon } from '@/components/Icons';
 
 interface Event {
   eventId: string;
@@ -22,6 +24,9 @@ export default function EventPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploadKey, setUploadKey] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     loadEvent();
@@ -45,6 +50,45 @@ export default function EventPage() {
 
   const handleUploadSuccess = () => {
     setUploadKey((prev) => prev + 1);
+  };
+
+  const downloadAllPhotos = async () => {
+    if (!event) return;
+    setDownloadingAll(true);
+    try {
+      const photos = await getEventPhotos(event.eventId);
+      if (photos.length === 0) {
+        showToast('No photos to download', 'error');
+        setDownloadingAll(false);
+        return;
+      }
+
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i] as any;
+        if (photo.cloudinaryUrl) {
+          try {
+            const response = await fetch(photo.cloudinaryUrl);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${event.eventName || 'photo'}-${i + 1}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } catch {
+            window.open(photo.cloudinaryUrl, '_blank');
+          }
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
+      showToast(`Downloaded ${photos.length} photos!`, 'success');
+    } catch (err) {
+      showToast('Failed to download photos', 'error');
+    } finally {
+      setDownloadingAll(false);
+    }
   };
 
   if (loading) {
@@ -105,6 +149,34 @@ export default function EventPage() {
               <p className="text-slate-500 text-sm">{event.eventDescription}</p>
             )}
           </div>
+
+          {/* Quick share button */}
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                const link = `${window.location.origin}/event/${event.eventCode}`;
+                navigator.clipboard.writeText(link);
+                setCopied(true);
+                showToast('Gallery link copied!', 'success');
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
+            >
+              {copied ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <CopyIcon size={12} />
+                  Copy Gallery Link
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -134,15 +206,40 @@ export default function EventPage() {
           {/* Gallery Section */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <polyline points="21 15 16 10 5 21" />
-                  </svg>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-semibold text-slate-900">Gallery</h2>
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900">Live Gallery</h2>
+                <button
+                  onClick={downloadAllPhotos}
+                  disabled={downloadingAll}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {downloadingAll ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+                      </svg>
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Download All
+                    </>
+                  )}
+                </button>
               </div>
               <PhotoGallery eventId={event.eventId} organizerId={event.organizerId} />
             </div>

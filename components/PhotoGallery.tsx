@@ -34,6 +34,25 @@ export default function PhotoGallery({
     return () => unsubscribe();
   }, [eventId]);
 
+  const downloadPhotoAsFile = async (photo: Photo) => {
+    try {
+      const response = await fetch(photo.cloudinaryUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const timestamp = photo.uploadedAt?.toDate?.()?.toISOString()?.split('T')[0] || new Date().toISOString().split('T')[0];
+      a.download = `snapspot-${timestamp}-${photo.id?.slice(0, 8) || 'photo'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      // Fallback: open in new tab
+      window.open(photo.cloudinaryUrl, '_blank');
+    }
+  };
+
   const handleDeletePhoto = async (photoId: string) => {
     if (!confirm('Delete this photo?')) return;
 
@@ -93,21 +112,37 @@ export default function PhotoGallery({
               onClick={() => setSelectedPhoto(photo)}
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
-            {user?.uid === organizerId && (
+            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDeletePhoto(photo.id);
+                  downloadPhotoAsFile(photo);
                 }}
-                className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-red-500 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                title="Delete photo"
+                className="bg-white/90 backdrop-blur-sm text-slate-600 p-1.5 rounded-lg hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                title="Download photo"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
               </button>
-            )}
+              {user?.uid === organizerId && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeletePhoto(photo.id);
+                  }}
+                  className="bg-white/90 backdrop-blur-sm text-red-500 p-1.5 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                  title="Delete photo"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -118,23 +153,40 @@ export default function PhotoGallery({
           className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setSelectedPhoto(null)}
         >
-          <button
-            className="absolute top-4 right-4 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-            onClick={() => setSelectedPhoto(null)}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          {/* Top bar */}
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
+            <button
+              onClick={() => downloadPhotoAsFile(selectedPhoto)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-white/30 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download
+            </button>
+            <button
+              className="text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+              onClick={() => setSelectedPhoto(null)}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
           <img
             src={selectedPhoto.cloudinaryUrl}
             alt="Full screen photo"
             className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
-          <p className="absolute bottom-4 text-white/60 text-xs">
-            Click anywhere outside the photo to close
+
+          {/* Bottom hint */}
+          <p className="absolute bottom-4 text-white/50 text-xs">
+            Click outside to close · Download button above
           </p>
         </div>
       )}

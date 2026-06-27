@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/authContext';
 import { getOrganizerEvents, deleteEvent } from '@/lib/eventService';
 import { generateQRCode, downloadQRCode } from '@/lib/qrGenerator';
-
+import { useToast } from '@/components/Toast';
+import { CopyIcon, ShareIcon, DownloadIcon, TrashIcon, LinkIcon } from '@/components/Icons';
 
 interface Event {
   eventId: string;
@@ -21,7 +22,9 @@ export default function OrganizerDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
+  const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const { user, loading: authLoading, signOut } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
@@ -62,14 +65,44 @@ export default function OrganizerDashboard() {
     }
   };
 
+  const copyEventLink = (event: Event) => {
+    const link = `${window.location.origin}/event/${event.eventCode}`;
+    navigator.clipboard.writeText(link);
+    setCopiedEventId(event.eventId);
+    showToast('Event link copied to clipboard!', 'success');
+    setTimeout(() => setCopiedEventId(null), 2000);
+  };
+
+  const shareEvent = async (event: Event) => {
+    const link = `${window.location.origin}/event/${event.eventCode}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `SnapSpot - ${event.eventName}`,
+          text: `Share your photos at ${event.eventName}! Upload here:`,
+          url: link,
+        });
+      } catch (err) {
+        // User cancelled or share failed
+        if (err instanceof Error && err.name !== 'AbortError') {
+          copyEventLink(event);
+        }
+      }
+    } else {
+      // Fallback: copy link if Web Share API is not available
+      copyEventLink(event);
+    }
+  };
+
   const handleDeleteEvent = async (eventId: string) => {
     if (!confirm('Are you sure you want to delete this event?')) return;
 
     try {
       await deleteEvent(eventId);
       setEvents(events.filter((e) => e.eventId !== eventId));
+      showToast('Event deleted', 'info');
     } catch (error) {
-      alert('Failed to delete event');
+      showToast('Failed to delete event', 'error');
     }
   };
 
@@ -182,29 +215,69 @@ export default function OrganizerDashboard() {
                   </div>
                 </div>
 
+                {/* Sharing */}
+                <div className="mb-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <LinkIcon size={14} className="text-indigo-500" />
+                    <span className="text-xs font-medium text-indigo-700">Share with guests</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => copyEventLink(event)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-100 transition text-xs font-medium"
+                    >
+                      {copiedEventId === event.eventId ? (
+                        <>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <CopyIcon size={14} />
+                          Copy Link
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => shareEvent(event)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-xs font-medium"
+                    >
+                      <ShareIcon size={14} />
+                      Share
+                    </button>
+                  </div>
+                </div>
+
                 {/* Actions */}
                 <div className="flex gap-2">
                   <Link
                     href={`/organizer/event/${event.eventId}`}
-                    className="flex-1 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-center text-sm"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
                   >
-                    View Event
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    Gallery
                   </Link>
                   <button
                     onClick={() =>
                       downloadQRCode(event.eventCode, event.eventName)
                     }
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
+                    className="px-3 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 transition"
                     title="Download QR Code"
                   >
-                    ⬇️
+                    <DownloadIcon size={16} />
                   </button>
                   <button
                     onClick={() => handleDeleteEvent(event.eventId)}
-                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-sm"
+                    className="px-3 py-2 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition"
                     title="Delete Event"
                   >
-                    🗑️
+                    <TrashIcon size={16} />
                   </button>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 // SnapSpot Service Worker
-const CACHE_NAME = 'snapspot-v1';
+const CACHE_NAME = 'snapspot-v2';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
