@@ -46,7 +46,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           return;
         }
         await createUserWithEmailAndPassword(auth, email, password);
-        router.push('/organizer/dashboard');
+        router.push('/auth/signin');
       } else {
         await signInWithEmailAndPassword(auth, email, password);
         router.push('/organizer/dashboard');
