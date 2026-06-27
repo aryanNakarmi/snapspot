@@ -4,9 +4,11 @@ import { useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { useToast } from './Toast';
 
 const FRIENDLY_ERRORS: Record<string, string> = {
   'auth/invalid-credential': 'Invalid email or password. Please try again.',
@@ -32,6 +34,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,9 +49,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
           return;
         }
         await createUserWithEmailAndPassword(auth, email, password);
+        // Sign out so the user can log in fresh with their new credentials
+        await signOut(auth);
+        showToast('Account created successfully! Please sign in.', 'success');
         router.push('/auth/signin');
       } else {
         await signInWithEmailAndPassword(auth, email, password);
+        showToast('Welcome back!', 'success');
         router.push('/organizer/dashboard');
       }
     } catch (err: any) {

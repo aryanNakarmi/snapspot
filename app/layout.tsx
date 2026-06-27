@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/lib/authContext'
+import { ToastProvider } from '@/components/Toast'
 import PwaRegister from '@/components/PwaRegister'
 import OfflineBanner from '@/components/OfflineBanner'
 
@@ -44,9 +45,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          {children}
-          <PwaRegister />
-          <OfflineBanner />
+          <ToastProvider>
+            {children}
+            <PwaRegister />
+            <OfflineBanner />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
