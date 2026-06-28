@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/authContext';
 import { createEvent } from '@/lib/eventService';
@@ -14,6 +14,12 @@ export default function CreateEvent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/auth/signin');
+    }
+  }, [user, authLoading, router]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
@@ -25,17 +31,7 @@ export default function CreateEvent() {
   }
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 flex-col gap-4">
-        <p className="text-slate-600">Please sign in to create an event</p>
-        <Link
-          href="/auth/signin"
-          className="px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition-colors"
-        >
-          Go to Sign In
-        </Link>
-      </div>
-    );
+    return null;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
