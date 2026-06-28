@@ -115,8 +115,10 @@ export default function OrganizerDashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="inline-block animate-spin mb-4">⏳</div>
-          <p>Loading...</p>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin text-indigo-500 mb-4">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+          </svg>
+          <p className="text-slate-500">Loading...</p>
         </div>
       </div>
     );
@@ -160,7 +162,13 @@ export default function OrganizerDashboard() {
 
         {events.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-4xl mb-4">📭</p>
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </div>
             <p className="text-xl text-gray-600 mb-8">
               You haven't created any events yet
             </p>

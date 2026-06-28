@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { uploadToCloudinary } from '@/lib/cloudinaryService';
 import { addPhoto } from '@/lib/eventService';
 import { queuePhoto } from '@/lib/offlineQueue';
@@ -20,6 +20,19 @@ export default function CameraCapture({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [offlineQueued, setOfflineQueued] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -198,7 +211,7 @@ export default function CameraCapture({
         </div>
       )}
 
-      {!navigator.onLine && !preview && (
+      {!isOnline && !preview && (
         <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-100 rounded-lg">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mt-0.5 shrink-0">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
