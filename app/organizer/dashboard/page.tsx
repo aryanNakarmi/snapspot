@@ -137,6 +137,7 @@ export default function OrganizerDashboard() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
+              <img src="/icons/icon-192.png" alt="SnapSpot" className="w-8 h-8 rounded-lg" />
               <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 SnapSpot
               </h1>

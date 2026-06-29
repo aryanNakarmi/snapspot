@@ -7,9 +7,7 @@ export default function SignIn() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
+            <img src="/icons/icon-192.png" alt="SnapSpot" className="w-10 h-10 rounded-lg shadow-sm" />
           </Link>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h1>
           <p className="text-slate-500">Sign in to manage your events</p>

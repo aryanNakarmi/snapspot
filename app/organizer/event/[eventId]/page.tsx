@@ -175,9 +175,7 @@ export default function OrganizerEventPage() {
             </Link>
             <div className="w-px h-4 bg-slate-200" />
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xs">S</span>
-              </div>
+              <img src="/icons/icon-192.png" alt="SnapSpot" className="w-7 h-7 rounded-lg" />
               <span className="text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 SnapSpot
               </span>

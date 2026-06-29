@@ -38,9 +38,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-lg">S</span>
-              </div>
+              <img src="/icons/icon-192.png" alt="SnapSpot" className="w-9 h-9 rounded-lg shadow-sm" />
               <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 SnapSpot
               </span>
@@ -214,9 +212,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-500 rounded flex items-center justify-center">
-                <span className="text-white font-bold text-xs">S</span>
-              </div>
+              <img src="/icons/icon-192.png" alt="SnapSpot" className="w-6 h-6 rounded" />
               <span className="text-sm font-semibold text-slate-700">SnapSpot</span>
             </div>
             <p className="text-sm text-slate-400">
