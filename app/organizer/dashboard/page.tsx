@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/authContext';
-import { getOrganizerEvents, deleteEvent } from '@/lib/eventService';
+import { getOrganizerEvents, deleteEvent, getPhotoCount } from '@/lib/eventService';
 import { generateQRCode, downloadQRCode } from '@/lib/qrGenerator';
 import { useToast } from '@/components/Toast';
 import { CopyIcon, ShareIcon, DownloadIcon, TrashIcon, LinkIcon } from '@/components/Icons';
@@ -36,17 +36,23 @@ export default function OrganizerDashboard() {
     }
 
     loadEvents();
-  }, [user, authLoading]);
-
-  const loadEvents = async () => {
+  }, [user, authLoading]);  const loadEvents = async () => {
     if (!user) return;
     setLoading(true);
     try {
       const userEvents = await getOrganizerEvents(user.uid);
-      
+
       // Make sure it's an array
       const eventsArray = Array.isArray(userEvents) ? userEvents : [];
-      setEvents(eventsArray as Event[]);
+
+      // Fetch real photo counts for all events in parallel
+      const eventsWithCounts = await Promise.all(
+        eventsArray.map(async (event) => {
+          const count = await getPhotoCount(event.eventId);
+          return { ...event, photoCount: count };
+        })
+      );
+      setEvents(eventsWithCounts as Event[]);
 
       // Generate QR codes
       const codes: Record<string, string> = {};

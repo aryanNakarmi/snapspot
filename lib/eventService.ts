@@ -13,6 +13,7 @@ import {
   onSnapshot,
   orderBy,
   increment,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { v4 as uuidv4 } from 'uuid';
@@ -193,6 +194,18 @@ export const subscribeToPhotos = (
   } catch (error) {
     console.error('Error subscribing to photos:', error);
     throw error;
+  }
+};
+
+// Get photo count for an event using aggregation query
+export const getPhotoCount = async (eventId: string): Promise<number> => {
+  try {
+    const photosRef = collection(db, 'events', eventId, 'photos');
+    const snapshot = await getCountFromServer(photosRef);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error('Error getting photo count:', error);
+    return 0;
   }
 };
 

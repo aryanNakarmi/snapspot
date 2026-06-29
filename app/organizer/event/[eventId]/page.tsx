@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/authContext';
 import { getEventById, getEventPhotos } from '@/lib/eventService';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { generateQRCode, downloadQRCode } from '@/lib/qrGenerator';
 import { useToast } from '@/components/Toast';
 import PhotoGallery from '@/components/PhotoGallery';
@@ -29,6 +31,7 @@ export default function OrganizerEventPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [photoCount, setPhotoCount] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -78,6 +81,15 @@ export default function OrganizerEventPage() {
       setLoading(false);
     }
   };
+
+  // Real-time listener for photo count — works for initial load and keeps in sync
+  useEffect(() => {
+    const photosRef = collection(db, 'events', eventId, 'photos');
+    const unsubscribe = onSnapshot(photosRef, (snapshot) => {
+      setPhotoCount(snapshot.size);
+    });
+    return unsubscribe;
+  }, [eventId]);
 
   const copyEventLink = () => {
     if (event) {
@@ -183,7 +195,7 @@ export default function OrganizerEventPage() {
             </div>
             <div className="flex items-center gap-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-indigo-600">{event.photoCount || 0}</p>
+                <p className="text-2xl font-bold text-indigo-600">{photoCount}</p>
                 <p className="text-xs text-slate-500">Photos</p>
               </div>
               <div className="text-center">
@@ -315,7 +327,7 @@ export default function OrganizerEventPage() {
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                Download All ({event.photoCount || 0})
+                Download All ({photoCount})
               </>
             )}
           </button>
