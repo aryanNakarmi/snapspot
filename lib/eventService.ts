@@ -126,6 +126,7 @@ export const deleteEvent = async (eventId: string) => {
 };
 
 // Add photo
+// Add photo
 export const addPhoto = async (
   eventId: string,
   photoData: {
@@ -141,12 +142,8 @@ export const addPhoto = async (
       uploadedAt: serverTimestamp(),
     });
 
-    // Increment photoCount on the event
-    const eventRef = doc(db, 'events', eventId);
-    await updateDoc(eventRef, {
-      photoCount: increment(1),
-      updatedAt: serverTimestamp(),
-    });
+    // Don't update photoCount - guests don't have permission
+    // Organizers can count photos by querying the photos sub-collection
 
     return docRef.id;
   } catch (error) {
