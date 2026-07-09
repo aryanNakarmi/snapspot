@@ -133,6 +133,7 @@ export const addPhoto = async (
   photoData: {
     cloudinaryUrl: string;
     cloudinaryPublicId: string;
+    phash?: string | null;
     uploaderDevice?: string;
   }
 ) => {
@@ -140,6 +141,7 @@ export const addPhoto = async (
     const photosRef = collection(db, 'events', eventId, 'photos');
     const docRef = await addDoc(photosRef, {
       ...photoData,
+      phash: photoData.phash || null,
       uploadedAt: serverTimestamp(),
     });
 
