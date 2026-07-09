@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { uploadToCloudinary } from '@/lib/cloudinaryService';
+import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinaryService';
 import { addPhoto } from '@/lib/eventService';
 import { queuePhoto } from '@/lib/offlineQueue';
+import { moderateImage } from '@/lib/moderationService';
 
 interface CameraCaptureProps {
   eventId: string;
@@ -81,9 +82,27 @@ export default function CameraCapture({
 
       const cloudinaryData = await uploadToCloudinary(selectedFile);
 
+      // Check photo for inappropriate content via Google Vision API
+      const moderation = await moderateImage(cloudinaryData.url);
+
+      if (moderation.flagged) {
+        // Delete the photo from Cloudinary if it was flagged
+        try {
+          await deleteFromCloudinary(cloudinaryData.publicId);
+        } catch {}
+
+        setError(
+          moderation.reason ||
+            'This photo was flagged as inappropriate and cannot be uploaded.'
+        );
+        setUploading(false);
+        return;
+      }
+
       await addPhoto(eventId, {
         cloudinaryUrl: cloudinaryData.url,
         cloudinaryPublicId: cloudinaryData.publicId,
+        phash: cloudinaryData.phash,
         uploaderDevice: navigator.userAgent,
       });
 
