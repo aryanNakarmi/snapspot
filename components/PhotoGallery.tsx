@@ -1,14 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { subscribeToPhotos, deletePhoto } from '@/lib/eventService';
 import { useAuth } from '@/lib/authContext';
-
-interface Photo {
-  id: string;
-  cloudinaryUrl: string;
-  uploadedAt: any;
-}
+import { groupPhotos } from '@/lib/photoGrouping';
+import type { Photo, PhotoGroup } from '@/lib/photoGrouping';
 
 interface PhotoGalleryProps {
   eventId: string;
@@ -22,6 +18,7 @@ export default function PhotoGallery({
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const { user } = useAuth();
 
   useEffect(() => {
@@ -34,6 +31,29 @@ export default function PhotoGallery({
     return () => unsubscribe();
   }, [eventId]);
 
+  // Group photos using the grouping algorithm
+  const groups = useMemo(() => groupPhotos(photos), [photos]);
+
+  // Auto-expand groups that have > 4 photos (collapse the rest for a clean look)
+  useEffect(() => {
+    const initiallyExpanded = new Set<string>();
+    groups.forEach((g) => {
+      if (g.photos.length <= 4) {
+        initiallyExpanded.add(g.id);
+      }
+    });
+    setExpandedGroups(initiallyExpanded);
+  }, [groups]);
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
   const downloadPhotoAsFile = async (photo: Photo) => {
     try {
       const response = await fetch(photo.cloudinaryUrl);
@@ -41,7 +61,7 @@ export default function PhotoGallery({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const timestamp = photo.uploadedAt?.toDate?.()?.toISOString()?.split('T')[0] || new Date().toISOString().split('T')[0];
+      const timestamp = (photo.uploadedAt as any)?.toDate?.()?.toISOString()?.split('T')[0] || new Date().toISOString().split('T')[0];
       a.download = `snapspot-${timestamp}-${photo.id?.slice(0, 8) || 'photo'}`;
       document.body.appendChild(a);
       a.click();
@@ -102,49 +122,116 @@ export default function PhotoGallery({
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {photos.map((photo) => (
-          <div key={photo.id} className="relative group cursor-pointer aspect-square">
-            <img
-              src={photo.cloudinaryUrl}
-              alt="Event photo"
-              className="w-full h-full object-cover rounded-lg border border-slate-100 group-hover:border-indigo-300 group-hover:shadow-md transition-all"
-              onClick={() => setSelectedPhoto(photo)}
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
-            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  downloadPhotoAsFile(photo);
-                }}
-                className="bg-white/90 backdrop-blur-sm text-slate-600 p-1.5 rounded-lg hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
-                title="Download photo"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-              </button>
-              {user?.uid === organizerId && (
+      {/* Grouped Gallery */}
+      <div className="space-y-8">
+        {groups.map((group) => {
+          const isExpanded = expandedGroups.has(group.id);
+          const showExpandButton = group.photos.length > 4;
+          const displayPhotos = isExpanded ? group.photos : group.photos.slice(0, 4);
+
+          return (
+            <div key={group.id}>
+              {/* Group Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  {/* Moment icon */}
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-slate-800">{group.label}</span>
+                    <span className="text-xs text-slate-400 ml-2">
+                      · {group.photos.length} {group.photos.length === 1 ? 'photo' : 'photos'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expand/collapse for large groups */}
+                {showExpandButton && (
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className="text-xs font-medium text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-1"
+                  >
+                    {isExpanded ? (
+                      <>
+                        Show less
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="18 15 12 9 6 15" />
+                        </svg>
+                      </>
+                    ) : (
+                      <>
+                        Show all {group.photos.length}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Photo Grid for this group */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {displayPhotos.map((photo) => (
+                  <div key={photo.id} className="relative group cursor-pointer aspect-square">
+                    <img
+                      src={photo.cloudinaryUrl}
+                      alt="Event photo"
+                      className="w-full h-full object-cover rounded-lg border border-slate-100 group-hover:border-indigo-300 group-hover:shadow-md transition-all"
+                      onClick={() => setSelectedPhoto(photo)}
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadPhotoAsFile(photo);
+                        }}
+                        className="bg-white/90 backdrop-blur-sm text-slate-600 p-1.5 rounded-lg hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                        title="Download photo"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                      </button>
+                      {user?.uid === organizerId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePhoto(photo.id);
+                          }}
+                          className="bg-white/90 backdrop-blur-sm text-red-500 p-1.5 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                          title="Delete photo"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Show +N more if collapsed */}
+              {!isExpanded && showExpandButton && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeletePhoto(photo.id);
-                  }}
-                  className="bg-white/90 backdrop-blur-sm text-red-500 p-1.5 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                  title="Delete photo"
+                  onClick={() => toggleGroup(group.id)}
+                  className="mt-2 w-full py-2 text-xs font-medium text-indigo-500 bg-indigo-50/50 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
+                  +{group.photos.length - 4} more {group.photos.length - 4 === 1 ? 'photo' : 'photos'}
                 </button>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Lightbox */}
