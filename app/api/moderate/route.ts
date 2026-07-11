@@ -14,14 +14,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If no API key is configured, skip moderation (pass through)
+    // If no API key is configured, skip analysis (pass through)
     if (!GOOGLE_VISION_API_KEY) {
-      console.warn('GOOGLE_VISION_API_KEY not set — moderation is disabled');
+      console.warn('GOOGLE_VISION_API_KEY not set — analysis is disabled');
       return NextResponse.json({
         moderated: false,
         flagged: false,
-        reason: 'Moderation not configured',
+        reason: null,
         safeSearch: null,
+        labels: [],
+        faces: [],
       });
     }
 
@@ -34,7 +36,11 @@ export async function POST(request: NextRequest) {
             image: {
               source: { imageUri: imageUrl },
             },
-            features: [{ type: 'SAFE_SEARCH_DETECTION' }],
+            features: [
+              { type: 'SAFE_SEARCH_DETECTION', maxResults: 1 },
+              { type: 'LABEL_DETECTION', maxResults: 20 },
+              { type: 'FACE_DETECTION', maxResults: 10 },
+            ],
           },
         ],
       }),
@@ -49,54 +55,81 @@ export async function POST(request: NextRequest) {
         flagged: false,
         reason: null,
         safeSearch: null,
+        labels: [],
+        faces: [],
       });
     }
 
     const data = await response.json();
-    const safeSearch = data.responses?.[0]?.safeSearchAnnotation;
+    const responses = data.responses?.[0];
+    const safeSearch = responses?.safeSearchAnnotation;
+    const labelAnnotations = responses?.labelAnnotations || [];
+    const faceAnnotations = responses?.faceAnnotations || [];
 
-    if (!safeSearch) {
-      return NextResponse.json({
-        moderated: true,
-        flagged: false,
-        safeSearch: null,
-      });
+    // --- Safe Search (existing moderation) ---
+    let flagged = false;
+    let moderationReason: string | null = null;
+    if (safeSearch) {
+      const rejectionThresholds = ['LIKELY', 'VERY_LIKELY'];
+      const isAdult = rejectionThresholds.includes(safeSearch.adult);
+      const isViolent = rejectionThresholds.includes(safeSearch.violence);
+      const isRacy = rejectionThresholds.includes(safeSearch.racy);
+
+      flagged = isAdult || isViolent;
+      const reasons: string[] = [];
+      if (isAdult) reasons.push('adult');
+      if (isViolent) reasons.push('violent');
+      if (isRacy) reasons.push('suggestive');
+      if (flagged) {
+        moderationReason = `Inappropriate content detected: ${reasons.join(', ')}`;
+      }
     }
 
-    // Determine if the image is inappropriate based on likelihood ratings
-    // VERY_UNLIKELY, UNLIKELY, POSSIBLE, LIKELY, VERY_LIKELY
-    const rejectionThresholds = ['LIKELY', 'VERY_LIKELY'];
+    // --- Labels (for object/scene grouping) ---
+    const labels = labelAnnotations.map((label: any) => ({
+      description: label.description,
+      score: label.score,
+      topicality: label.topicality,
+    }));
 
-    const isAdult = rejectionThresholds.includes(safeSearch.adult);
-    const isViolent = rejectionThresholds.includes(safeSearch.violence);
-    const isRacy = rejectionThresholds.includes(safeSearch.racy);
-
-    const flagged = isAdult || isViolent;
-    const reasons: string[] = [];
-    if (isAdult) reasons.push('adult');
-    if (isViolent) reasons.push('violent');
-    if (isRacy) reasons.push('suggestive');
+    // --- Faces (for counting faces per photo) ---
+    const faces = faceAnnotations.map((face: any) => ({
+      boundingPoly: face.boundingPoly,
+      fdBrightness: face.fdBrightness,
+      detectionConfidence: face.detectionConfidence,
+      landmarkingConfidence: face.landmarkingConfidence,
+      joyLikelihood: face.joyLikelihood,
+      sorrowLikelihood: face.sorrowLikelihood,
+      angerLikelihood: face.angerLikelihood,
+      surpriseLikelihood: face.surpriseLikelihood,
+    }));
 
     return NextResponse.json({
       moderated: true,
       flagged,
-      reason: flagged ? `Inappropriate content detected: ${reasons.join(', ')}` : null,
-      safeSearch: {
-        adult: safeSearch.adult,
-        violence: safeSearch.violence,
-        racy: safeSearch.racy,
-        medical: safeSearch.medical,
-        spoof: safeSearch.spoof,
-      },
+      reason: moderationReason,
+      safeSearch: safeSearch
+        ? {
+            adult: safeSearch.adult,
+            violence: safeSearch.violence,
+            racy: safeSearch.racy,
+            medical: safeSearch.medical,
+            spoof: safeSearch.spoof,
+          }
+        : null,
+      labels,
+      faces,
     });
   } catch (error: any) {
-    console.error('Moderation error:', error);
+    console.error('Analysis error:', error);
     // Fail-open on internal errors — don't block uploads
     return NextResponse.json({
       moderated: false,
       flagged: false,
       reason: null,
       safeSearch: null,
+      labels: [],
+      faces: [],
     });
   }
 }
