@@ -127,7 +127,6 @@ export const deleteEvent = async (eventId: string) => {
 };
 
 // Add photo
-// Add photo
 export const addPhoto = async (
   eventId: string,
   photoData: {
@@ -135,13 +134,26 @@ export const addPhoto = async (
     cloudinaryPublicId: string;
     phash?: string | null;
     uploaderDevice?: string;
+    labels?: string[];
+    faceDescriptors?: number[][];
   }
 ) => {
   try {
     const photosRef = collection(db, 'events', eventId, 'photos');
+
+    // Firestore does NOT support nested arrays (e.g. number[][]).
+    // Convert face descriptors to array of wrapper objects: [{ values: [0.1, 0.2, ...] }, ...]
+    const safeFaceDescriptors = photoData.faceDescriptors?.length
+      ? photoData.faceDescriptors.map((d) => ({ values: d }))
+      : [];
+
     const docRef = await addDoc(photosRef, {
-      ...photoData,
+      cloudinaryUrl: photoData.cloudinaryUrl,
+      cloudinaryPublicId: photoData.cloudinaryPublicId,
       phash: photoData.phash || null,
+      uploaderDevice: photoData.uploaderDevice || '',
+      labels: photoData.labels || [],
+      faceDescriptors: safeFaceDescriptors,
       uploadedAt: serverTimestamp(),
     });
 

@@ -5,92 +5,66 @@ import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinaryServic
 import { addPhoto } from '@/lib/eventService';
 import { queuePhoto } from '@/lib/offlineQueue';
 import { moderateImage } from '@/lib/moderationService';
+import { loadFaceModels, detectFaceDescriptors, areFaceModelsLoaded } from '@/lib/faceRecognition';
 
 interface CameraCaptureProps {
   eventId: string;
-  onUploadSuccess: () => void;
+  onUploadSuccess?: () => void;
 }
 
-export default function CameraCapture({
-  eventId,
-  onUploadSuccess,
-}: CameraCaptureProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+export default function CameraCapture({ eventId, onUploadSuccess }: CameraCaptureProps) {
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [offlineQueued, setOfflineQueued] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [facesLoaded, setFacesLoaded] = useState(false);
+  const [faceStatus, setFaceStatus] = useState<string | null>(null);
 
+  // Load face-api.js models on mount (silent — doesn't block uploads)
   useEffect(() => {
-    setIsOnline(navigator.onLine);
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+    if (!areFaceModelsLoaded()) {
+      loadFaceModels()
+        .then(() => setFacesLoaded(true))
+        .catch(() => console.warn('Face models not available — face grouping disabled'));
+    } else {
+      setFacesLoaded(true);
+    }
   }, []);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleGalleryPick = () => {
+    galleryInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB');
-      return;
-    }
-
-    setError('');
-    setOfflineQueued(false);
-    setSelectedFile(file);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    await uploadBlob(file);
+    // Reset so the same file can be re-selected
+    e.target.value = '';
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
-
+  const uploadBlob = async (file: File) => {
     setUploading(true);
-    setError('');
-    setOfflineQueued(false);
+    setError(null);
+    setFaceStatus(null);
 
     try {
-      if (!navigator.onLine) {
-        await queuePhoto(eventId, selectedFile);
-        setPreview(null);
-        setSelectedFile(null);
-        setOfflineQueued(true);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        onUploadSuccess();
-        return;
-      }
+      // Upload to Cloudinary
+      const cloudinaryData = await uploadToCloudinary(file);
 
-      const cloudinaryData = await uploadToCloudinary(selectedFile);
-
-      // Check photo for inappropriate content via Google Vision API
+      // Run moderation via Google Vision API (for safety check only)
       const moderation = await moderateImage(cloudinaryData.url);
 
+      // Check for inappropriate content
       if (moderation.flagged) {
-        // Delete the photo from Cloudinary if it was flagged
         try {
           await deleteFromCloudinary(cloudinaryData.publicId);
         } catch {}
-
         setError(
           moderation.reason ||
             'This photo was flagged as inappropriate and cannot be uploaded.'
@@ -99,149 +73,164 @@ export default function CameraCapture({
         return;
       }
 
+      // Detect objects using Hugging Face Inference API (free, no time limit)
+      let labels: string[] = [];
+      try {
+        const analysisRes = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: cloudinaryData.url }),
+        });
+        const analysis = await analysisRes.json();
+        if (analysis.tags && analysis.tags.length > 0) {
+          labels = analysis.tags;
+        }
+        if (analysis.error === 'RATE_LIMITED') {
+          console.warn('Hugging Face rate limited — label grouping disabled for this upload');
+        }
+      } catch (err) {
+        console.warn('Object detection failed:', err);
+      }
+
+      // Run face descriptor detection (if models loaded) — happens in background
+      let faceDescriptors: number[][] = [];
+      if (facesLoaded) {
+        setFaceStatus('Analyzing faces...');
+        try {
+          faceDescriptors = await detectFaceDescriptors(cloudinaryData.url);
+        } catch (err) {
+          console.warn('Face detection failed:', err);
+        }
+        setFaceStatus(
+          faceDescriptors.length > 0
+            ? `${faceDescriptors.length} face${faceDescriptors.length > 1 ? 's' : ''} detected`
+            : null
+        );
+      }
+
+      // Handle offline
+      if (!navigator.onLine) {
+        await queuePhoto(eventId, file);
+        setError('No internet connection. Photo will upload when you\'re back online.');
+        setUploading(false);
+        return;
+      }
+
+      // Save to Firestore with labels and face descriptors
       await addPhoto(eventId, {
         cloudinaryUrl: cloudinaryData.url,
         cloudinaryPublicId: cloudinaryData.publicId,
         phash: cloudinaryData.phash,
         uploaderDevice: navigator.userAgent,
+        labels,
+        faceDescriptors,
       });
 
-      setPreview(null);
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-
-      onUploadSuccess();
+      setUploading(false);
+      onUploadSuccess?.();
     } catch (err: any) {
       if (!navigator.onLine || err.message?.includes('Network')) {
-        try {
-          await queuePhoto(eventId, selectedFile);
-          setPreview(null);
-          setSelectedFile(null);
-          setOfflineQueued(true);
-          onUploadSuccess();
-          return;
-        } catch (queueErr) {
-          setError('Failed to save photo. Please try again.');
-        }
+        await queuePhoto(eventId, file).catch(() => {});
+        setError('No internet connection. Photo will upload when you\'re back online.');
       } else {
-        setError(err.message || 'Upload failed');
+        setError(err.message || 'Upload failed. Please try again.');
       }
-    } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-
-      {!preview ? (
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full py-3 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-          Take Photo
-        </button>
-      ) : (
-        <div className="space-y-4">
-          <div className="relative rounded-lg overflow-hidden bg-slate-100">
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full max-h-80 object-contain"
-            />
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                setPreview(null);
-                setSelectedFile(null);
-                setOfflineQueued(false);
-              }}
-              className="flex-1 px-4 py-2.5 border border-slate-200 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleUpload}
-              disabled={uploading}
-              className="flex-1 px-4 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {uploading ? (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-                  </svg>
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  Upload
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="space-y-4">
       {error && (
-        <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-100 rounded-lg">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500 mt-0.5 shrink-0">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
             <circle cx="12" cy="12" r="10" />
-            <line x1="15" y1="9" x2="9" y2="15" />
-            <line x1="9" y1="9" x2="15" y2="15" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <p className="text-sm text-red-700">{error}</p>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
       )}
 
-      {offlineQueued && (
-        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mt-0.5 shrink-0">
-            <line x1="1" y1="1" x2="23" y2="23" />
-            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
-            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
-            <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
-            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-            <line x1="12" y1="20" x2="12.01" y2="20" />
+      {faceStatus && (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
-          <p className="text-sm text-amber-700">
-            Photo saved. It will be uploaded automatically when you are back online.
-          </p>
+          <span>{faceStatus}</span>
         </div>
       )}
 
-      {!isOnline && !preview && (
-        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mt-0.5 shrink-0">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-          <p className="text-sm text-amber-700">
-            You are offline. Photos will be queued and uploaded when connection is restored.
-          </p>
+      <div className="flex flex-col gap-3">
+        {/* Camera capture — opens native camera on mobile */}
+        <button
+          onClick={handleCameraCapture}
+          disabled={uploading}
+          className="w-full flex items-center justify-center gap-2 bg-indigo-500 text-white px-4 py-3 rounded-xl hover:bg-indigo-600 disabled:opacity-50 transition-all font-medium shadow-sm"
+        >
+          {uploading ? (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+              </svg>
+              Uploading...
+            </>
+          ) : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+              Take Photo
+            </>
+          )}
+        </button>
+        {/* Hidden file input that opens native camera */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFileSelected}
+        />
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-xs text-slate-400 font-medium">OR</span>
+          <div className="flex-1 h-px bg-slate-200" />
         </div>
-      )}
+
+        {/* Gallery picker */}
+        <button
+          onClick={handleGalleryPick}
+          disabled={uploading}
+          className="w-full flex items-center justify-center gap-2 bg-white text-slate-700 px-4 py-3 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-medium border border-slate-200 shadow-sm"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          Choose from Gallery
+        </button>
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileSelected}
+        />
+      </div>
     </div>
   );
 }

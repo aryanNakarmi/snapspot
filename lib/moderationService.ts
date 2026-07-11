@@ -1,3 +1,19 @@
+export interface LabelAnnotation {
+  description: string;
+  score: number;
+  topicality: number;
+}
+
+export interface FaceAnnotation {
+  boundingPoly: any;
+  detectionConfidence: number;
+  landmarkingConfidence: number;
+  joyLikelihood: string;
+  sorrowLikelihood: string;
+  angerLikelihood: string;
+  surpriseLikelihood: string;
+}
+
 export interface ModerationResult {
   moderated: boolean;
   flagged: boolean;
@@ -9,6 +25,8 @@ export interface ModerationResult {
     medical: string;
     spoof: string;
   } | null;
+  labels: LabelAnnotation[];
+  faces: FaceAnnotation[];
 }
 
 export async function moderateImage(imageUrl: string): Promise<ModerationResult> {
@@ -27,6 +45,8 @@ export async function moderateImage(imageUrl: string): Promise<ModerationResult>
         flagged: false,
         reason: null,
         safeSearch: null,
+        labels: [],
+        faces: [],
       };
     }
 
@@ -39,6 +59,8 @@ export async function moderateImage(imageUrl: string): Promise<ModerationResult>
       flagged: false,
       reason: null,
       safeSearch: null,
+      labels: [],
+      faces: [],
     };
   }
 }

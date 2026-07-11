@@ -31,14 +31,14 @@ export default function PhotoGallery({
     return () => unsubscribe();
   }, [eventId]);
 
-  // Group photos using the grouping algorithm
+  // Group photos using the smart semantic grouping
   const groups = useMemo(() => groupPhotos(photos), [photos]);
 
-  // Auto-expand groups that have > 4 photos (collapse the rest for a clean look)
+  // Auto-expand small groups (<= 4 photos) or any face/label groups
   useEffect(() => {
     const initiallyExpanded = new Set<string>();
     groups.forEach((g) => {
-      if (g.photos.length <= 4) {
+      if (g.photos.length <= 4 || g.type !== 'time') {
         initiallyExpanded.add(g.id);
       }
     });
@@ -120,6 +120,26 @@ export default function PhotoGallery({
     );
   }
 
+  // Get a background color gradient for the group type
+  const groupHeaderStyle = (type: string) => {
+    switch (type) {
+      case 'face':
+        return 'from-indigo-100 to-purple-100 text-indigo-600';
+      case 'label':
+        return 'from-emerald-100 to-teal-100 text-emerald-600';
+      default:
+        return 'from-slate-100 to-gray-100 text-slate-500';
+    }
+  };
+
+  const groupLabelText = (type: string) => {
+    switch (type) {
+      case 'face': return 'text-indigo-800';
+      case 'label': return 'text-emerald-800';
+      default: return 'text-slate-800';
+    }
+  };
+
   return (
     <>
       {/* Grouped Gallery */}
@@ -134,18 +154,27 @@ export default function PhotoGallery({
               {/* Group Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  {/* Moment icon */}
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
+                  {/* Group type icon */}
+                  <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${groupHeaderStyle(group.type)} flex items-center justify-center text-base`}>
+                    {group.icon}
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-slate-800">{group.label}</span>
+                    <span className={`text-sm font-semibold ${groupLabelText(group.type)}`}>
+                      {group.label}
+                    </span>
                     <span className="text-xs text-slate-400 ml-2">
                       · {group.photos.length} {group.photos.length === 1 ? 'photo' : 'photos'}
                     </span>
+                    {group.type === 'label' && (
+                      <span className="text-[10px] text-emerald-500 ml-1.5 font-medium uppercase tracking-wide">
+                        Auto
+                      </span>
+                    )}
+                    {group.type === 'face' && (
+                      <span className="text-[10px] text-indigo-500 ml-1.5 font-medium uppercase tracking-wide">
+                        Face
+                      </span>
+                    )}
                   </div>
                 </div>
 
