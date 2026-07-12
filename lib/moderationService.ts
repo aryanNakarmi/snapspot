@@ -16,8 +16,10 @@ export interface FaceAnnotation {
 
 export interface ModerationResult {
   moderated: boolean;
+  configured: boolean;
   flagged: boolean;
   reason: string | null;
+  hfNsfw?: { label: string; score: number }[] | null;
   safeSearch: {
     adult: string;
     violence: string;
@@ -42,6 +44,7 @@ export async function moderateImage(imageUrl: string): Promise<ModerationResult>
       // Fail open — if the API is down, allow the upload
       return {
         moderated: false,
+        configured: false,
         flagged: false,
         reason: null,
         safeSearch: null,
@@ -56,6 +59,7 @@ export async function moderateImage(imageUrl: string): Promise<ModerationResult>
     // Fail open on network errors
     return {
       moderated: false,
+      configured: false,
       flagged: false,
       reason: null,
       safeSearch: null,
