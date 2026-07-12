@@ -17,6 +17,7 @@ export default function CameraCapture({ eventId, onUploadSuccess }: CameraCaptur
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [facesLoaded, setFacesLoaded] = useState(false);
   const [faceStatus, setFaceStatus] = useState<string | null>(null);
 
@@ -51,14 +52,22 @@ export default function CameraCapture({ eventId, onUploadSuccess }: CameraCaptur
   const uploadBlob = async (file: File) => {
     setUploading(true);
     setError(null);
+    setWarning(null);
     setFaceStatus(null);
 
     try {
       // Upload to Cloudinary
       const cloudinaryData = await uploadToCloudinary(file);
 
-      // Run moderation via Google Vision API (for safety check only)
+      // Run moderation via Hugging Face + Google Vision (free NSFW detection)
       const moderation = await moderateImage(cloudinaryData.url);
+
+      // Warn if no moderation service is configured
+      if (!moderation.configured) {
+        setWarning('Content moderation is not configured. Set HF_TOKEN in .env.local to enable NSFW filtering.');
+      } else {
+        setWarning(null);
+      }
 
       // Check for inappropriate content
       if (moderation.flagged) {
@@ -150,6 +159,26 @@ export default function CameraCapture({ eventId, onUploadSuccess }: CameraCaptur
           </svg>
           <span>{error}</span>
           <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {warning && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">Moderation disabled</span>
+            <p className="text-amber-600/80 mt-0.5">{warning}</p>
+          </div>
+          <button onClick={() => setWarning(null)} className="text-amber-400 hover:text-amber-600 shrink-0">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />

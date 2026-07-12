@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { subscribeToPhotos, deletePhoto } from '@/lib/eventService';
 import { useAuth } from '@/lib/authContext';
 import { groupPhotos } from '@/lib/photoGrouping';
@@ -17,8 +17,9 @@ export default function PhotoGallery({
 }: PhotoGalleryProps) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [imageLoaded, setImageLoaded] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -54,6 +55,48 @@ export default function PhotoGallery({
     });
   };
 
+  // --- Navigation helpers ---
+  const selectedPhoto = selectedPhotoIndex !== null && selectedPhotoIndex < photos.length
+    ? photos[selectedPhotoIndex]
+    : null;
+
+  const goNext = useCallback(() => {
+    setSelectedPhotoIndex((prev) => {
+      if (prev === null || prev >= photos.length - 1) return prev;
+      setImageLoaded(false);
+      return prev + 1;
+    });
+  }, [photos.length]);
+
+  const goPrev = useCallback(() => {
+    setSelectedPhotoIndex((prev) => {
+      if (prev === null || prev <= 0) return prev;
+      setImageLoaded(false);
+      return prev - 1;
+    });
+  }, []);
+
+  const openLightbox = useCallback((photo: Photo) => {
+    // Use ID lookup instead of reference equality — Firestore creates new objects
+    const idx = photos.findIndex(p => p.id === photo.id);
+    if (idx >= 0) {
+      setSelectedPhotoIndex(idx);
+      setImageLoaded(false);
+    }
+  }, [photos]);
+
+  const closeLightbox = useCallback(() => {
+    setSelectedPhotoIndex(null);
+    setImageLoaded(false);
+  }, []);
+
+  // Close lightbox if the selected photo was deleted by someone else
+  useEffect(() => {
+    if (selectedPhotoIndex !== null && selectedPhotoIndex >= photos.length) {
+      closeLightbox();
+    }
+  }, [photos.length, selectedPhotoIndex, closeLightbox]);
+
   const downloadPhotoAsFile = async (photo: Photo) => {
     try {
       const response = await fetch(photo.cloudinaryUrl);
@@ -68,7 +111,6 @@ export default function PhotoGallery({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      // Fallback: open in new tab
       window.open(photo.cloudinaryUrl, '_blank');
     }
   };
@@ -83,16 +125,38 @@ export default function PhotoGallery({
     }
   };
 
-  // Close on escape key
+  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setSelectedPhoto(null);
+      if (selectedPhotoIndex === null) return;
+
+      switch (e.key) {
+        case 'Escape':
+          closeLightbox();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          goNext();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          goPrev();
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [selectedPhotoIndex, closeLightbox, goNext, goPrev]);
+
+  // Lock body scroll when lightbox is open
+  useEffect(() => {
+    if (selectedPhotoIndex !== null) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [selectedPhotoIndex]);
 
   if (loading) {
     return (
@@ -120,7 +184,6 @@ export default function PhotoGallery({
     );
   }
 
-  // Get a background color gradient for the group type
   const groupHeaderStyle = (type: string) => {
     switch (type) {
       case 'face':
@@ -140,6 +203,21 @@ export default function PhotoGallery({
     }
   };
 
+  // Keyboard hint component for lightbox
+  const KeyboardHint = () => (
+    <div className="hidden sm:flex items-center gap-4 text-white/40 text-xs">
+      <span className="flex items-center gap-1">
+        <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px]">←</kbd>
+        <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px]">→</kbd>
+        Navigate
+      </span>
+      <span className="flex items-center gap-1">
+        <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px]">Esc</kbd>
+        Close
+      </span>
+    </div>
+  );
+
   return (
     <>
       {/* Grouped Gallery */}
@@ -154,7 +232,6 @@ export default function PhotoGallery({
               {/* Group Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  {/* Group type icon */}
                   <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${groupHeaderStyle(group.type)} flex items-center justify-center text-base`}>
                     {group.icon}
                   </div>
@@ -166,19 +243,14 @@ export default function PhotoGallery({
                       · {group.photos.length} {group.photos.length === 1 ? 'photo' : 'photos'}
                     </span>
                     {group.type === 'label' && (
-                      <span className="text-[10px] text-emerald-500 ml-1.5 font-medium uppercase tracking-wide">
-                        Auto
-                      </span>
+                      <span className="text-[10px] text-emerald-500 ml-1.5 font-medium uppercase tracking-wide">Auto</span>
                     )}
                     {group.type === 'face' && (
-                      <span className="text-[10px] text-indigo-500 ml-1.5 font-medium uppercase tracking-wide">
-                        Face
-                      </span>
+                      <span className="text-[10px] text-indigo-500 ml-1.5 font-medium uppercase tracking-wide">Face</span>
                     )}
                   </div>
                 </div>
 
-                {/* Expand/collapse for large groups */}
                 {showExpandButton && (
                   <button
                     onClick={() => toggleGroup(group.id)}
@@ -203,18 +275,21 @@ export default function PhotoGallery({
                 )}
               </div>
 
-              {/* Photo Grid for this group */}
+              {/* Photo Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {displayPhotos.map((photo) => (
-                  <div key={photo.id} className="relative group cursor-pointer aspect-square">
+                  <div
+                    key={photo.id}
+                    className="relative group cursor-pointer aspect-square overflow-hidden rounded-lg"
+                    onClick={() => openLightbox(photo)}
+                  >
                     <img
                       src={photo.cloudinaryUrl}
                       alt="Event photo"
-                      className="w-full h-full object-cover rounded-lg border border-slate-100 group-hover:border-indigo-300 group-hover:shadow-md transition-all"
-                      onClick={() => setSelectedPhoto(photo)}
+                      className="w-full h-full object-cover border border-slate-100 group-hover:border-indigo-300 group-hover:shadow-md transition-all duration-200 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -249,7 +324,6 @@ export default function PhotoGallery({
                 ))}
               </div>
 
-              {/* Show +N more if collapsed */}
               {!isExpanded && showExpandButton && (
                 <button
                   onClick={() => toggleGroup(group.id)}
@@ -263,47 +337,135 @@ export default function PhotoGallery({
         })}
       </div>
 
-      {/* Lightbox */}
-      {selectedPhoto && (
+      {/* Image Preview Lightbox */}
+      {selectedPhotoIndex !== null && selectedPhoto && (
         <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setSelectedPhoto(null)}
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center cursor-pointer"
+          onClick={closeLightbox}
         >
-          {/* Top bar */}
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
-            <button
-              onClick={() => downloadPhotoAsFile(selectedPhoto)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-white/30 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Download
-            </button>
-            <button
-              className="text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-              onClick={() => setSelectedPhoto(null)}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+          {/* Top Bar — click stops propagation so it doesn't close */}
+          <div
+            className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-b from-black/60 to-transparent cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <button
+                onClick={(e) => { e.stopPropagation(); downloadPhotoAsFile(selectedPhoto); }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/10 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-white/20 transition-all"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download
+              </button>
+
+              {/* Photo labels */}
+              {selectedPhoto.labels && selectedPhoto.labels.length > 0 && (
+                <div className="hidden sm:flex items-center gap-1.5 ml-2">
+                  {selectedPhoto.labels.slice(0, 3).map((label, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-white/10 backdrop-blur-sm text-white/70 text-[10px] rounded-full">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <KeyboardHint />
+              <span className="text-sm text-white/60 font-medium tabular-nums">
+                {selectedPhotoIndex + 1} of {photos.length}
+              </span>
+              <button
+                className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all"
+                onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <img
-            src={selectedPhoto.cloudinaryUrl}
-            alt="Full screen photo"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
+          {/* Previous Button */}
+          {selectedPhotoIndex > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goPrev(); }}
+              className="absolute left-2 sm:left-4 z-20 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/25 transition-all hover:scale-110 shadow-lg"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
 
-          {/* Bottom hint */}
-          <p className="absolute bottom-4 text-white/50 text-xs">
-            Click outside to close · Download button above
-          </p>
+          {/* Next Button */}
+          {selectedPhotoIndex < photos.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goNext(); }}
+              className="absolute right-2 sm:right-4 z-20 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/25 transition-all hover:scale-110 shadow-lg"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          )}
+
+          {/* Image — only the image itself stops propagation */}
+          <div className="relative z-10 p-4 sm:p-8" onClick={(e) => e.stopPropagation()}>
+            {/* Loading Spinner */}
+            {!imageLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+              </div>
+            )}
+
+            <img
+              src={selectedPhoto.cloudinaryUrl}
+              alt="Event photo"
+              className={`max-w-[90vw] max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl transition-all duration-300 select-none cursor-default ${
+                imageLoaded
+                  ? 'opacity-100 scale-100'
+                  : 'opacity-0 scale-95'
+              }`}
+              onLoad={() => setImageLoaded(true)}
+              draggable={false}
+            />
+          </div>
+
+          {/* Bottom Bar */}
+          <div
+            className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center px-4 sm:px-6 py-4 bg-gradient-to-t from-black/60 to-transparent cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-6">
+              {selectedPhoto.uploadedAt && (
+                <span className="text-white/50 text-xs">
+                  {(selectedPhoto.uploadedAt as any)?.toDate?.()?.toLocaleString() || ''}
+                </span>
+              )}
+              {selectedPhoto.labels && selectedPhoto.labels.length > 0 && (
+                <div className="flex sm:hidden items-center gap-1.5">
+                  {selectedPhoto.labels.slice(0, 2).map((label, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-white/10 text-white/60 text-[10px] rounded-full">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Click hint at bottom center */}
+          <span
+            className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20 text-white/30 text-xs cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Click anywhere outside the photo to close
+          </span>
         </div>
       )}
     </>
