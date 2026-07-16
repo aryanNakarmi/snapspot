@@ -8,7 +8,6 @@ import PhotoGallery from '@/components/PhotoGallery';
 import Link from 'next/link';
 import { useToast } from '@/components/Toast';
 import { CopyIcon } from '@/components/Icons';
-import { downloadComic } from '@/lib/comicDownload';
 
 interface Event {
   eventId: string;
@@ -27,7 +26,6 @@ export default function EventPage() {
   const [uploadKey, setUploadKey] = useState(0);
   const [copied, setCopied] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
-  const [comicLoading, setComicLoading] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -52,19 +50,6 @@ export default function EventPage() {
 
   const handleUploadSuccess = () => {
     setUploadKey((prev) => prev + 1);
-  };
-
-  const handleDownloadComic = async () => {
-    if (!event) return;
-    setComicLoading(true);
-    try {
-      const result = await downloadComic(event.eventId, event.eventName);
-      showToast(`Comic downloaded! ${result.total} photos · ${result.downloaded} page${result.downloaded > 1 ? 's' : ''}`, 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to create comic', 'error');
-    } finally {
-      setComicLoading(false);
-    }
   };
 
   const downloadAllPhotos = async () => {
@@ -231,31 +216,6 @@ export default function EventPage() {
                   <h2 className="text-lg font-semibold text-slate-900">Gallery</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleDownloadComic}
-                    disabled={comicLoading}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Download as comic book page layout"
-                  >
-                    {comicLoading ? (
-                      <>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                          <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-                        </svg>
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M4 7V4h16v3" />
-                          <path d="M9 20h6" />
-                          <path d="M12 4v16" />
-                          <path d="M8 12h8" />
-                        </svg>
-                        Download Comic
-                      </>
-                    )}
-                  </button>
                   <button
                     onClick={downloadAllPhotos}
                     disabled={downloadingAll}

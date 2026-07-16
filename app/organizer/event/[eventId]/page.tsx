@@ -11,7 +11,6 @@ import { generateQRCode, downloadQRCode } from '@/lib/qrGenerator';
 import { useToast } from '@/components/Toast';
 import PhotoGallery from '@/components/PhotoGallery';
 import { CopyIcon, DownloadIcon } from '@/components/Icons';
-import { downloadComic } from '@/lib/comicDownload';
 
 interface Event {
   eventId: string;
@@ -36,7 +35,6 @@ export default function OrganizerEventPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
   const [downloadingAll, setDownloadingAll] = useState(false);
-  const [comicLoading, setComicLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -99,18 +97,6 @@ export default function OrganizerEventPage() {
       setCopied(true);
       showToast('Event link copied to clipboard!', 'success');
       setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleDownloadComic = async () => {
-    setComicLoading(true);
-    try {
-      const result = await downloadComic(eventId, event?.eventName || 'Event');
-      showToast(`Comic downloaded! ${result.total} photos · ${result.downloaded} page${result.downloaded > 1 ? 's' : ''}`, 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to create comic', 'error');
-    } finally {
-      setComicLoading(false);
     }
   };
 
@@ -321,31 +307,6 @@ export default function OrganizerEventPage() {
             <h2 className="text-xl font-semibold text-slate-900">Event Photos</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadComic}
-              disabled={comicLoading}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              title="Download as comic book page layout"
-            >
-              {comicLoading ? (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-                  </svg>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 7V4h16v3" />
-                    <path d="M9 20h6" />
-                    <path d="M12 4v16" />
-                    <path d="M8 12h8" />
-                  </svg>
-                  Download Comic
-                </>
-              )}
-            </button>
             <button
               onClick={downloadAllPhotos}
               disabled={downloadingAll}
