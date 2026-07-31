@@ -5,8 +5,23 @@ const HF_TOKEN = process.env.HF_TOKEN;
 const GOOGLE_VISION_API_KEY = process.env.GOOGLE_VISION_API_KEY;
 const VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate';
 
-// NSFW detection model on Hugging Face — free to use with any HF token
-const NSFW_MODEL = 'Falconsai/nsfw_image_detection';
+// ── Hugging Face NSFW models ──
+// Run multiple models in parallel for better coverage
+const NSFW_MODELS = [
+  { name: 'Falconsai/nsfw_image_detection', restrictive: false },
+  { name: 'AdamCodd/vit-base-nsfw-detector', restrictive: true },
+];
+
+// Expanded NSFW label keywords — catches more explicit content variants
+const NSFW_LABELS = new Set([
+  'nsfw', 'porn', 'pornographic', 'hentai', 'explicit',
+  'adult', 'nudity', 'nude', 'naked', 'sexual', 'sex',
+  'erotica', 'erotic', 'xxx', '18+', 'mature',
+  'provocative', 'suggestive', 'intimate',
+]);
+
+// Lower threshold — catches borderline content that the high threshold misses
+const NSFW_THRESHOLD = 0.35;
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +34,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if any moderation is configured at all
     const noModerationConfigured = !HF_TOKEN && !GOOGLE_VISION_API_KEY;
 
     if (noModerationConfigured) {
@@ -39,118 +53,149 @@ export async function POST(request: NextRequest) {
 
     let flagged = false;
     let moderationReason: string | null = null;
-    let hfNsfwResult: any = null;
+    let allHfResults: any[] = [];
     let googleSafeSearch: any = null;
     let labels: any[] = [];
     let faces: any[] = [];
 
-    // --- Phase 1: Hugging Face NSFW detection (free, no API key needed beyond HF_TOKEN) ---
-    if (HF_TOKEN) {
-      try {
+    // ── Run Hugging Face and Google Vision in parallel ──
+    const results = await Promise.allSettled([
+      // Task 1: Hugging Face multi-model NSFW detection
+      (async () => {
+        if (!HF_TOKEN) return [];
         const hf = new HfInference(HF_TOKEN);
-
-        // Fetch the image
         const imageResponse = await fetch(imageUrl);
-        if (imageResponse.ok) {
-          const imageBlob = await imageResponse.blob();
+        if (!imageResponse.ok) return [];
 
-          const classifications = await hf.imageClassification({
-            data: imageBlob,
-            model: NSFW_MODEL,
-          });
+        const imageBlob = await imageResponse.blob();
+        const modelResults: { model: string; label: string; score: number }[] = [];
 
-          hfNsfwResult = classifications;
+        for (const model of NSFW_MODELS) {
+          try {
+            const classifications = await hf.imageClassification({
+              data: imageBlob,
+              model: model.name,
+            });
 
-          // The model returns labels like "normal", "nsfw" with confidence scores
-          // Flag if the highest NSFW label crosses the threshold
-          const nsfwThreshold = 0.6;
-          for (const c of classifications) {
-            const label = c.label.toLowerCase();
-            const score = c.score;
-            if (
-              (label === 'nsfw' || label === 'porn' || label === 'hentai') &&
-              score >= nsfwThreshold
-            ) {
-              flagged = true;
-              moderationReason = `Inappropriate content detected (${Math.round(score * 100)}% confidence)`;
-              break;
+            for (const c of classifications) {
+              modelResults.push({
+                model: model.name,
+                label: c.label.toLowerCase(),
+                score: c.score,
+              });
             }
+          } catch (err: any) {
+            console.warn(`HF model ${model.name} failed:`, err?.message || err);
           }
         }
-      } catch (error: any) {
-        console.error('Hugging Face NSFW detection error:', error?.message || error);
-        // Don't fail the whole moderation — let Google Vision try if available
-      }
-    }
 
-    // --- Phase 2: Google Vision Safe Search (secondary, if configured) ---
-    if (GOOGLE_VISION_API_KEY && !flagged) {
-      try {
+        return modelResults;
+      })(),
+
+      // Task 2: Google Vision Safe Search (if configured)
+      (async () => {
+        if (!GOOGLE_VISION_API_KEY) return null;
+
         const response = await fetch(`${VISION_API_URL}?key=${GOOGLE_VISION_API_KEY}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            requests: [
-              {
-                image: {
-                  source: { imageUri: imageUrl },
-                },
-                features: [
-                  { type: 'SAFE_SEARCH_DETECTION', maxResults: 1 },
-                  { type: 'LABEL_DETECTION', maxResults: 20 },
-                  { type: 'FACE_DETECTION', maxResults: 10 },
-                ],
-              },
-            ],
+            requests: [{
+              image: { source: { imageUri: imageUrl } },
+              features: [
+                { type: 'SAFE_SEARCH_DETECTION', maxResults: 1 },
+                { type: 'LABEL_DETECTION', maxResults: 20 },
+                { type: 'FACE_DETECTION', maxResults: 10 },
+              ],
+            }],
           }),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          const annotations = data.responses?.[0];
-          const safeSearch = annotations?.safeSearchAnnotation;
+        if (!response.ok) return null;
+        const data = await response.json();
+        const annotations = data.responses?.[0];
 
-          if (safeSearch) {
-            googleSafeSearch = safeSearch;
-            const rejectionThresholds = ['LIKELY', 'VERY_LIKELY'];
-            const isAdult = rejectionThresholds.includes(safeSearch.adult);
-            const isViolent = rejectionThresholds.includes(safeSearch.violence);
+        return {
+          safeSearch: annotations?.safeSearchAnnotation || null,
+          labels: annotations?.labelAnnotations?.map((l: any) => ({
+            description: l.description,
+            score: l.score,
+            topicality: l.topicality,
+          })) || [],
+          faces: annotations?.faceAnnotations?.map((f: any) => ({
+            boundingPoly: f.boundingPoly,
+            detectionConfidence: f.detectionConfidence,
+            landmarkingConfidence: f.landmarkingConfidence,
+            joyLikelihood: f.joyLikelihood,
+            sorrowLikelihood: f.sorrowLikelihood,
+            angerLikelihood: f.angerLikelihood,
+            surpriseLikelihood: f.surpriseLikelihood,
+          })) || [],
+        };
+      })(),
+    ]);
 
-            if (isAdult || isViolent) {
-              flagged = true;
-              const reasons: string[] = [];
-              if (isAdult) reasons.push('adult');
-              if (isViolent) reasons.push('violent');
-              moderationReason = `Inappropriate content detected: ${reasons.join(', ')}`;
-            }
-          }
+    // ── Process HF results ──
+    if (results[0].status === 'fulfilled') {
+      allHfResults = results[0].value;
 
-          // Labels and faces for grouping
-          labels = annotations?.labelAnnotations?.map((label: any) => ({
-            description: label.description,
-            score: label.score,
-            topicality: label.topicality,
-          })) || [];
-
-          faces = annotations?.faceAnnotations?.map((face: any) => ({
-            boundingPoly: face.boundingPoly,
-            detectionConfidence: face.detectionConfidence,
-            landmarkingConfidence: face.landmarkingConfidence,
-            joyLikelihood: face.joyLikelihood,
-            sorrowLikelihood: face.sorrowLikelihood,
-            angerLikelihood: face.angerLikelihood,
-            surpriseLikelihood: face.surpriseLikelihood,
-          })) || [];
+      // Check each model result for NSFW labels
+      for (const r of allHfResults) {
+        if (NSFW_LABELS.has(r.label) && r.score >= NSFW_THRESHOLD) {
+          flagged = true;
+          const modelName = r.model.split('/').pop() || 'unknown';
+          moderationReason = `Inappropriate content detected (${modelName}: ${r.label} at ${Math.round(r.score * 100)}% confidence)`;
+          break;
         }
-      } catch (error: any) {
-        console.error('Google Vision API error:', error?.message || error);
-        // If Google Vision fails but Hugging Face already checked, we still have that result
       }
     }
 
-    // If Hugging Face flagged it, add NSFW detail to the response
-    if (hfNsfwResult && flagged) {
-      console.log('NSFW detection result:', JSON.stringify(hfNsfwResult));
+    // ── Process Google Vision results ──
+    if (results[1].status === 'fulfilled' && results[1].value) {
+      const gv = results[1].value;
+      googleSafeSearch = gv.safeSearch;
+      labels = gv.labels;
+      faces = gv.faces;
+
+      if (gv.safeSearch) {
+        const ss = gv.safeSearch;
+        const rejectionLevels = ['LIKELY', 'VERY_LIKELY'];
+
+        // Check adult content
+        if (rejectionLevels.includes(ss.adult)) {
+          flagged = true;
+          moderationReason = `Inappropriate content detected: adult content (${ss.adult})`;
+        }
+        // Check violence
+        else if (rejectionLevels.includes(ss.violence)) {
+          flagged = true;
+          moderationReason = `Inappropriate content detected: violent content (${ss.violence})`;
+        }
+        // Check racy at VERY_LIKELY (suggestive/sexual content)
+        else if (ss.racy === 'VERY_LIKELY') {
+          flagged = true;
+          moderationReason = `Inappropriate content detected: suggestive content (${ss.racy})`;
+        }
+        // Combined signal: racy LIKELY + any HF detection above a lower threshold
+        else if (ss.racy === 'LIKELY' && !flagged) {
+          // Check if any HF model flagged something at a lower threshold
+          const hasHfSignal = allHfResults.some(
+            (r) => NSFW_LABELS.has(r.label) && r.score >= 0.2
+          );
+          if (hasHfSignal) {
+            flagged = true;
+            moderationReason = 'Inappropriate content detected: combined signals (racy + NSFW)';
+          }
+        }
+      }
+    }
+
+    // ── Log detection details ──
+    if (allHfResults.length > 0) {
+      console.log('HF NSFW results:', JSON.stringify(allHfResults));
+    }
+    if (googleSafeSearch) {
+      console.log('Google SafeSearch:', JSON.stringify(googleSafeSearch));
     }
 
     return NextResponse.json({
@@ -158,7 +203,7 @@ export async function POST(request: NextRequest) {
       configured: true,
       flagged,
       reason: moderationReason,
-      hfNsfw: hfNsfwResult,
+      hfNsfw: allHfResults.length > 0 ? allHfResults : null,
       safeSearch: googleSafeSearch
         ? {
             adult: googleSafeSearch.adult,

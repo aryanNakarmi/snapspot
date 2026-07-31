@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/authContext';
@@ -11,6 +11,7 @@ import { generateQRCode, downloadQRCode } from '@/lib/qrGenerator';
 import { useToast } from '@/components/Toast';
 import PhotoGallery from '@/components/PhotoGallery';
 import { CopyIcon, DownloadIcon } from '@/components/Icons';
+import ComicView from '@/components/ComicView';
 
 interface Event {
   eventId: string;
@@ -35,6 +36,7 @@ export default function OrganizerEventPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [showComic, setShowComic] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -99,7 +101,6 @@ export default function OrganizerEventPage() {
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
   const downloadAllPhotos = async () => {
     setDownloadingAll(true);
     try {
@@ -307,6 +308,37 @@ export default function OrganizerEventPage() {
             <h2 className="text-xl font-semibold text-slate-900">Event Photos</h2>
           </div>
           <div className="flex items-center gap-2">
+
+            <button
+              onClick={() => setShowComic(!showComic)}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                showComic
+                  ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
+              }`}
+              title={showComic ? 'Back to gallery view' : 'View as interactive comic book'}
+            >
+              {showComic ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  Gallery View
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 7V4h16v3" />
+                    <path d="M9 20h6" />
+                    <path d="M12 4v16" />
+                    <path d="M8 12h8" />
+                  </svg>
+                  View Comic
+                </>
+              )}
+            </button>
             <button
               onClick={downloadAllPhotos}
               disabled={downloadingAll}
@@ -333,7 +365,16 @@ export default function OrganizerEventPage() {
           </div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <PhotoGallery eventId={event.eventId} organizerId={user?.uid} />
+          {showComic ? (
+            <ComicView
+              eventId={eventId}
+              eventName={event?.eventName || 'Event'}
+              eventDate={new Date().toLocaleDateString()}
+              eventDescription={event?.eventDescription}
+            />
+          ) : (
+            <PhotoGallery eventId={event.eventId} organizerId={user?.uid} />
+          )}
         </div>
       </div>
     </main>

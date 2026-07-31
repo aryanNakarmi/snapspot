@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { getEventByCode, getEventPhotos } from '@/lib/eventService';
 import CameraCapture from '@/components/CameraCapture';
@@ -8,6 +8,7 @@ import PhotoGallery from '@/components/PhotoGallery';
 import Link from 'next/link';
 import { useToast } from '@/components/Toast';
 import { CopyIcon } from '@/components/Icons';
+import ComicView from '@/components/ComicView';
 
 interface Event {
   eventId: string;
@@ -26,6 +27,7 @@ export default function EventPage() {
   const [uploadKey, setUploadKey] = useState(0);
   const [copied, setCopied] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [showComic, setShowComic] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -217,6 +219,36 @@ export default function EventPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setShowComic(!showComic)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      showComic
+                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                    }`}
+                    title={showComic ? 'Back to gallery view' : 'View as interactive comic book'}
+                  >
+                    {showComic ? (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        Gallery View
+                      </>
+                    ) : (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 7V4h16v3" />
+                          <path d="M9 20h6" />
+                          <path d="M12 4v16" />
+                          <path d="M8 12h8" />
+                        </svg>
+                        View Comic
+                      </>
+                    )}
+                  </button>
+                  <button
                     onClick={downloadAllPhotos}
                     disabled={downloadingAll}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
@@ -241,7 +273,16 @@ export default function EventPage() {
                   </button>
                 </div>
               </div>
-              <PhotoGallery eventId={event.eventId} organizerId={event.organizerId} />
+              {showComic ? (
+                <ComicView
+                  eventId={event.eventId}
+                  eventName={event.eventName}
+                  eventDate={new Date().toLocaleDateString()}
+                  eventDescription={event.eventDescription}
+                />
+              ) : (
+                <PhotoGallery eventId={event.eventId} organizerId={event.organizerId} />
+              )}
             </div>
           </div>
         </div>
