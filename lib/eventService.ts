@@ -223,7 +223,8 @@ export const getPhotoCount = async (eventId: string): Promise<number> => {
   }
 };
 
-// Delete photo
+// ── Photo deletion ──
+
 export const deletePhoto = async (eventId: string, photoId: string) => {
   try {
     await deleteDoc(doc(db, 'events', eventId, 'photos', photoId));
