@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/authContext';
 import { createEvent } from '@/lib/eventService';
 import Link from 'next/link';
-
+ 
 export default function CreateEvent() {
   const [eventName, setEventName] = useState('');
   const [eventDescription, setEventDescription] = useState('');
