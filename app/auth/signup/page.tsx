@@ -1,47 +1,32 @@
 import Link from 'next/link';
 import AuthForm from '@/components/AuthForm';
+import AuthShell from '@/components/AuthShell';
 
 export default function SignUp() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <img src="/icons/icon-192.png" alt="SnapSpot" className="w-10 h-10 rounded-lg shadow-sm" />
-          </Link>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Create Account</h1>
-          <p className="text-slate-500">Get started with SnapSpot in seconds</p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-          <AuthForm mode="signup" />
-
-          <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-            <p className="text-sm text-slate-500">
-              Already have an account?{' '}
-              <Link
-                href="/auth/signin"
-                className="text-indigo-600 hover:text-indigo-700 font-semibold"
-              >
-                Sign in
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 text-center">
+    <AuthShell
+      chip="Free for Organizers"
+      chipIcon={
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </svg>
+      }
+      title="Create your account"
+      subtitle="Get started with SnapSpot in seconds"
+      footer={
+        <p>
+          Already have an account?{' '}
           <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            href="/auth/signin"
+            className="text-indigo-600 hover:text-indigo-700 font-semibold hover:underline underline-offset-2"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            Back to home
+            Sign in
           </Link>
-        </div>
-      </div>
-    </main>
+        </p>
+      }
+    >
+      <AuthForm mode="signup" />
+    </AuthShell>
   );
 }
