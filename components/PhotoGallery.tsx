@@ -160,11 +160,16 @@ export default function PhotoGallery({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin text-indigo-500">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-        </svg>
-        <p className="text-sm text-slate-500">Loading photos...</p>
+      <div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              className="aspect-square rounded-lg bg-gradient-to-br from-slate-200 to-slate-100 animate-pulse"
+            />
+          ))}
+        </div>
+        <p className="sr-only">Loading photos...</p>
       </div>
     );
   }
@@ -277,10 +282,11 @@ export default function PhotoGallery({
 
               {/* Photo Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {displayPhotos.map((photo) => (
+                {displayPhotos.map((photo, idx) => (
                   <div
                     key={photo.id}
-                    className="relative group cursor-pointer aspect-square overflow-hidden rounded-lg"
+                    className="relative group cursor-pointer aspect-square overflow-hidden rounded-lg animate-fade-up"
+                    style={{ animationDelay: `${Math.min(idx * 50, 240)}ms` }}
                     onClick={() => openLightbox(photo)}
                   >
                     <img
