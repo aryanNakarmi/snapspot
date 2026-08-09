@@ -12,6 +12,7 @@ import { useToast } from '@/components/Toast';
 import PhotoGallery from '@/components/PhotoGallery';
 import { CopyIcon, DownloadIcon } from '@/components/Icons';
 import ComicView from '@/components/ComicView';
+import FindMeModal from '@/components/FindMeModal';
 
 interface Event {
   eventId: string;
@@ -37,6 +38,7 @@ export default function OrganizerEventPage() {
   const [qrLoading, setQrLoading] = useState(true);
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [showComic, setShowComic] = useState(false);
+  const [showFindMe, setShowFindMe] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -308,6 +310,19 @@ export default function OrganizerEventPage() {
             <h2 className="text-xl font-semibold text-slate-900">Event Photos</h2>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFindMe(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white text-sm font-medium rounded-lg hover:bg-pink-600 transition-colors"
+              title="Upload a selfie to find every photo you appear in"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              Find Me
+            </button>
 
             <button
               onClick={() => setShowComic(!showComic)}
@@ -377,6 +392,15 @@ export default function OrganizerEventPage() {
           )}
         </div>
       </div>
+
+      {/* Find Me modal — on-device face matching */}
+      {showFindMe && (
+        <FindMeModal
+          eventId={eventId}
+          eventName={event?.eventName}
+          onClose={() => setShowFindMe(false)}
+        />
+      )}
     </main>
   );
 }
