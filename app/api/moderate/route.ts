@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { HfInference } from '@huggingface/inference';
+import { isAllowedImageUrl } from '@/lib/safeImageUrl';
 
 const HF_TOKEN = process.env.HF_TOKEN;
 const GOOGLE_VISION_API_KEY = process.env.GOOGLE_VISION_API_KEY;
@@ -30,6 +31,14 @@ export async function POST(request: NextRequest) {
     if (!imageUrl) {
       return NextResponse.json(
         { error: 'imageUrl is required' },
+        { status: 400 }
+      );
+    }
+
+    // SSRF guard — only fetch images hosted on Cloudinary
+    if (!isAllowedImageUrl(imageUrl)) {
+      return NextResponse.json(
+        { error: 'imageUrl must be an HTTPS URL from res.cloudinary.com' },
         { status: 400 }
       );
     }

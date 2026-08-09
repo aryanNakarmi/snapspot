@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { HfInference } from '@huggingface/inference';
+import { isAllowedImageUrl } from '@/lib/safeImageUrl';
 
 // Hugging Face Inference API - free tier, no time limit
 // Get your free token at: https://huggingface.co/settings/tokens
@@ -15,6 +16,14 @@ export async function POST(request: NextRequest) {
     if (!imageUrl) {
       return NextResponse.json(
         { error: 'imageUrl is required' },
+        { status: 400 }
+      );
+    }
+
+    // SSRF guard — only fetch images hosted on Cloudinary
+    if (!isAllowedImageUrl(imageUrl)) {
+      return NextResponse.json(
+        { error: 'imageUrl must be an HTTPS URL from res.cloudinary.com' },
         { status: 400 }
       );
     }
