@@ -30,8 +30,23 @@ export const createEvent = async (
   eventDescription?: string
 ) => {
   try {
-    const eventCode = generateEventCode();
     const eventId = uuidv4();
+
+    // Generate a unique event code — retry if the code already exists
+    // (6 random base-36 chars can collide once events grow past ~50k)
+    let eventCode = generateEventCode();
+    let codeIsUnique = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const existing = await getEventByCode(eventCode);
+      if (!existing) {
+        codeIsUnique = true;
+        break;
+      }
+      eventCode = generateEventCode();
+    }
+    if (!codeIsUnique) {
+      throw new Error('Could not generate a unique event code. Please try again.');
+    }
 
     await setDoc(doc(db, 'events', eventId), {
       eventId,
