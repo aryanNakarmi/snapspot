@@ -204,7 +204,7 @@ export default function CameraCapture({ eventId, onUploadSuccess }: CameraCaptur
         <button
           onClick={handleCameraCapture}
           disabled={uploading}
-          className="w-full flex items-center justify-center gap-2 bg-indigo-500 text-white px-4 py-3 rounded-xl hover:bg-indigo-600 disabled:opacity-50 transition-all font-medium shadow-sm"
+          className="w-full flex items-center justify-center gap-2 bg-indigo-500 text-white px-4 py-3 rounded-xl hover:bg-indigo-600 active:scale-[0.98] disabled:opacity-50 transition-all font-medium shadow-sm"
         >
           {uploading ? (
             <>
@@ -243,7 +243,7 @@ export default function CameraCapture({ eventId, onUploadSuccess }: CameraCaptur
         <button
           onClick={handleGalleryPick}
           disabled={uploading}
-          className="w-full flex items-center justify-center gap-2 bg-white text-slate-700 px-4 py-3 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-medium border border-slate-200 shadow-sm"
+          className="w-full flex items-center justify-center gap-2 bg-white text-slate-700 px-4 py-3 rounded-xl hover:bg-slate-50 active:scale-[0.98] disabled:opacity-50 transition-all font-medium border border-slate-200 shadow-sm"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
