@@ -201,7 +201,7 @@ export default function EventPage() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Upload Section */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl border border-slate-200 p-6 sticky top-24">
+            <div className="bg-white rounded-xl border border-slate-200 p-6 lg:sticky lg:top-24">
               <div className="flex items-center gap-2.5 mb-5">
                 <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600">
@@ -223,7 +223,7 @@ export default function EventPage() {
           {/* Gallery Section */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
@@ -234,10 +234,10 @@ export default function EventPage() {
                   </div>
                   <h2 className="text-lg font-semibold text-slate-900">Gallery</h2>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => setShowFindMe(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-pink-500 text-white text-xs font-medium rounded-lg hover:bg-pink-600 transition-colors"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-pink-500 text-white text-xs font-medium rounded-lg hover:bg-pink-600 transition-colors flex-1 sm:flex-none"
                     title="Upload a selfie to find every photo you appear in"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -250,7 +250,7 @@ export default function EventPage() {
                   </button>
                   <button
                     onClick={() => setShowComic(!showComic)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 sm:flex-none ${
                       showComic
                         ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                         : 'bg-indigo-500 text-white hover:bg-indigo-600'
@@ -281,7 +281,7 @@ export default function EventPage() {
                   <button
                     onClick={downloadAllPhotos}
                     disabled={downloadingAll}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex-1 sm:flex-none"
                   >
                     {downloadingAll ? (
                       <>

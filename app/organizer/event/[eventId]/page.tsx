@@ -210,9 +210,9 @@ export default function OrganizerEventPage() {
 
           {/* Share Section */}
           <div className="mt-6 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-5">
-            <div className="flex items-start gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:gap-6 gap-4">
               {/* QR Code */}
-              <div className="shrink-0">
+              <div className="shrink-0 self-center sm:self-start">
                 <div className="w-28 h-28 bg-white rounded-xl border border-indigo-100 flex items-center justify-center shadow-sm">
                   {qrLoading ? (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin text-indigo-300">
@@ -298,7 +298,7 @@ export default function OrganizerEventPage() {
 
       {/* Photo Gallery */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
@@ -309,10 +309,10 @@ export default function OrganizerEventPage() {
             </div>
             <h2 className="text-xl font-semibold text-slate-900">Event Photos</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowFindMe(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white text-sm font-medium rounded-lg hover:bg-pink-600 transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-pink-500 text-white text-sm font-medium rounded-lg hover:bg-pink-600 transition-colors flex-1 sm:flex-none"
               title="Upload a selfie to find every photo you appear in"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -326,7 +326,7 @@ export default function OrganizerEventPage() {
 
             <button
               onClick={() => setShowComic(!showComic)}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors flex-1 sm:flex-none ${
                 showComic
                   ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                   : 'bg-indigo-500 text-white hover:bg-indigo-600'
@@ -357,7 +357,7 @@ export default function OrganizerEventPage() {
             <button
               onClick={downloadAllPhotos}
               disabled={downloadingAll}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex-1 sm:flex-none"
             >
               {downloadingAll ? (
                 <>

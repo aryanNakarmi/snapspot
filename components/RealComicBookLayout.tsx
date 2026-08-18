@@ -200,73 +200,101 @@ export default function RealComicBookLayout({
 
         {/* ══════ PAGE NAVIGATION ══════ */}
         <div className="sticky bottom-4 z-40">
-          <div className="bg-black/90 backdrop-blur-sm rounded-2xl border-4 border-yellow-400 shadow-2xl px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPageIndex((p) => Math.max(0, p - 1))}
-                disabled={currentPageIndex === 0}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white font-black text-sm rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Previous
-              </button>
-              <button
-                onClick={downloadAllPages}
-                disabled={downloadingAll}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white font-black text-xs rounded-xl hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
-                title="Download all pages as separate PNGs"
-              >
-                {downloadingAll ? (
-                  <>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    {totalPages > 1 ? `${totalPages} pages` : 'Download'}
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex gap-1">
-                {pages.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPageIndex(i)}
-                    className={`w-2.5 h-2.5 rounded-full transition-all ${
-                      i === currentPageIndex
-                        ? 'bg-yellow-400 scale-125'
-                        : 'bg-white/30 hover:bg-white/50'
-                    }`}
-                  />
-                ))}
+          <div className="bg-black/90 backdrop-blur-sm rounded-2xl border-4 border-yellow-400 shadow-2xl px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPageIndex((p) => Math.max(0, p - 1))}
+                  disabled={currentPageIndex === 0}
+                  className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-red-500 text-white font-black text-sm rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previous
+                </button>
+                <button
+                  onClick={downloadAllPages}
+                  disabled={downloadingAll}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white font-black text-xs rounded-xl hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                  title="Download all pages as separate PNGs"
+                >
+                  {downloadingAll ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      {totalPages > 1 ? `${totalPages} pages` : 'Download'}
+                    </>
+                  )}
+                </button>
               </div>
-              <span className="text-white font-black text-sm tabular-nums">
-                <span className="text-yellow-400">{currentPageIndex + 1}</span>
-                <span className="opacity-50"> / {totalPages}</span>
-              </span>
+
+              <div className="flex items-center gap-3">
+                <div className="hidden md:flex gap-1">
+                  {pages.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPageIndex(i)}
+                      className={`w-2.5 h-2.5 rounded-full transition-all ${
+                        i === currentPageIndex
+                          ? 'bg-yellow-400 scale-125'
+                          : 'bg-white/30 hover:bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-white font-black text-sm tabular-nums">
+                  <span className="text-yellow-400">{currentPageIndex + 1}</span>
+                  <span className="opacity-50"> / {totalPages}</span>
+                </span>
+              </div>
+
+              <button
+                onClick={() => setCurrentPageIndex((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={currentPageIndex >= totalPages - 1}
+                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-500 text-white font-black text-sm rounded-xl hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+              >
+                Next
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
             </div>
 
+            {/* Mobile-only full-width download button */}
             <button
-              onClick={() => setCurrentPageIndex((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPageIndex >= totalPages - 1}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white font-black text-sm rounded-xl hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+              onClick={downloadAllPages}
+              disabled={downloadingAll}
+              className="mt-3 w-full sm:hidden inline-flex items-center justify-center gap-1.5 px-3 py-2.5 bg-amber-500 text-white font-black text-xs rounded-xl hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+              title="Download all pages as separate PNGs"
             >
-              Next
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
+              {downloadingAll ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download all {totalPages > 1 ? `${totalPages} pages` : ''}
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -352,7 +380,7 @@ function ComicCover({
             &ldquo;{eventDescription}&rdquo;
           </p>
         )}
-        <div className="flex items-center justify-center gap-4 mt-6 text-white/80 text-xs font-bold">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-6 text-white/80 text-xs font-bold">
           <span>{totalPhotos} 📸 photos</span>
           <span className="w-1 h-1 rounded-full bg-white/40" />
           <span>{totalGroups} 👥 characters</span>
