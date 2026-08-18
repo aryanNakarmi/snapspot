@@ -5,6 +5,7 @@ import { subscribeToPhotos, deletePhoto } from '@/lib/eventService';
 import { useAuth } from '@/lib/authContext';
 import { groupPhotos } from '@/lib/photoGrouping';
 import type { Photo, PhotoGroup } from '@/lib/photoGrouping';
+import { UsersIcon, TagIcon, ClockIcon } from '@/components/Icons';
 
 interface PhotoGalleryProps {
   eventId: string;
@@ -237,8 +238,14 @@ export default function PhotoGallery({
               {/* Group Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${groupHeaderStyle(group.type)} flex items-center justify-center text-base`}>
-                    {group.icon}
+                  <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${groupHeaderStyle(group.type)} flex items-center justify-center`}>
+                    {group.type === 'face' ? (
+                      <UsersIcon size={16} />
+                    ) : group.type === 'label' ? (
+                      <TagIcon size={16} />
+                    ) : (
+                      <ClockIcon size={16} />
+                    )}
                   </div>
                   <div>
                     <span className={`text-sm font-semibold ${groupLabelText(group.type)}`}>
@@ -247,12 +254,6 @@ export default function PhotoGallery({
                     <span className="text-xs text-slate-400 ml-2">
                       · {group.photos.length} {group.photos.length === 1 ? 'photo' : 'photos'}
                     </span>
-                    {group.type === 'label' && (
-                      <span className="text-[10px] text-emerald-500 ml-1.5 font-medium uppercase tracking-wide">Auto</span>
-                    )}
-                    {group.type === 'face' && (
-                      <span className="text-[10px] text-indigo-500 ml-1.5 font-medium uppercase tracking-wide">Face</span>
-                    )}
                   </div>
                 </div>
 

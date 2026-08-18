@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import type { Photo, PhotoGroup } from '@/lib/photoGrouping';
 
@@ -78,6 +78,16 @@ export default function RealComicBookLayout({
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  // Grid columns: 4 on desktop, 2 on phones so panels stay wide enough to see photos
+  const [cols, setCols] = useState(4);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const updateCols = () => setCols(mq.matches ? 4 : 2);
+    updateCols();
+    mq.addEventListener('change', updateCols);
+    return () => mq.removeEventListener('change', updateCols);
+  }, []);
 
   const pages = useMemo(() => generateComicPages(groups, eventName), [groups, eventName]);
   const currentPage = pages[currentPageIndex] || pages[0];
@@ -195,6 +205,7 @@ export default function RealComicBookLayout({
           <AsymmetricalGrid
             panels={currentPage.panels}
             onPhotoClick={setSelectedPhoto}
+            cols={cols}
           />
         </div>
 
@@ -206,12 +217,13 @@ export default function RealComicBookLayout({
                 <button
                   onClick={() => setCurrentPageIndex((p) => Math.max(0, p - 1))}
                   disabled={currentPageIndex === 0}
-                  className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-red-500 text-white font-black text-sm rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                  aria-label="Previous page"
+                  className="inline-flex items-center justify-center gap-1.5 w-10 h-10 sm:w-auto sm:h-auto px-0 sm:px-4 py-2 bg-red-500 text-white font-black text-sm rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="15 18 9 12 15 6" />
                   </svg>
-                  Previous
+                  <span className="hidden sm:inline">Previous</span>
                 </button>
                 <button
                   onClick={downloadAllPages}
@@ -262,9 +274,10 @@ export default function RealComicBookLayout({
               <button
                 onClick={() => setCurrentPageIndex((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={currentPageIndex >= totalPages - 1}
-                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-500 text-white font-black text-sm rounded-xl hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                aria-label="Next page"
+                className="inline-flex items-center justify-center gap-1.5 w-10 h-10 sm:w-auto sm:h-auto px-0 sm:px-4 py-2 bg-blue-500 text-white font-black text-sm rounded-xl hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
@@ -399,10 +412,11 @@ function ComicCover({
 interface AsymmetricalGridProps {
   panels: ComicPanel[];
   onPhotoClick: (photo: Photo) => void;
+  cols: number;
 }
 
-function AsymmetricalGrid({ panels, onPhotoClick }: AsymmetricalGridProps) {
-  const gridPanels = useMemo(() => layoutAsymmetrical(panels), [panels]);
+function AsymmetricalGrid({ panels, onPhotoClick, cols }: AsymmetricalGridProps) {
+  const gridPanels = useMemo(() => layoutAsymmetrical(panels, cols), [panels, cols]);
   const maxRow = Math.max(...gridPanels.map((p) => p.row + p.rowSpan), 1);
 
   return (
@@ -410,7 +424,7 @@ function AsymmetricalGrid({ panels, onPhotoClick }: AsymmetricalGridProps) {
       className="relative"
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
         gridTemplateRows: `repeat(${maxRow}, auto)`,
         gap: '12px',
       }}
@@ -527,15 +541,16 @@ function PanelPhotoCard({ photo, onClick, isLarge }: PanelPhotoCardProps) {
       onClick={onClick}
       className="cursor-pointer group relative bg-black overflow-hidden h-full"
     >
-      {/* Image — fills the frame edge-to-edge with no labels */}
+      {/* Image — full photo always visible, letterboxed on black so nothing gets cropped */}
       <div
-        className="relative overflow-hidden bg-gray-100 h-full"
-        style={{ minHeight: isLarge ? '180px' : '120px' }}
+        className={`relative overflow-hidden bg-black h-full ${
+          isLarge ? 'min-h-[180px] sm:min-h-[240px]' : 'min-h-[120px] sm:min-h-[160px]'
+        }`}
       >
         <img
           src={photo.cloudinaryUrl}
           alt={photo.labels?.[0] || 'Event photo'}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
           crossOrigin="anonymous"
         />
@@ -605,23 +620,22 @@ function ComicStatistics({ groups, totalPages }: ComicStatisticsProps) {
 
   return (
     <div className="mt-12 bg-black border-[5px] border-yellow-400 rounded-2xl p-6 md:p-8">
-      <h3 className="text-2xl font-black text-yellow-300 mb-6 text-center flex items-center justify-center gap-2">
-        <span>📊</span> COMIC STATISTICS
+      <h3 className="text-2xl font-black text-yellow-300 mb-6 text-center">
+        Comic Statistics
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <StatCard value={totalFaces > 0 ? totalFaces : groups.length} label="CHARACTERS" emoji="👥" />
-        <StatCard value={totalPhotos} label="PHOTOS" emoji="📸" />
-        <StatCard value={totalPages} label="PAGES" emoji="📄" />
-        <StatCard value={totalLabels > 0 ? totalLabels : '∞'} label="OBJECTS" emoji="🏷️" />
+        <StatCard value={totalFaces > 0 ? totalFaces : groups.length} label="CHARACTERS" />
+        <StatCard value={totalPhotos} label="PHOTOS" />
+        <StatCard value={totalPages} label="PAGES" />
+        <StatCard value={totalLabels > 0 ? totalLabels : '∞'} label="OBJECTS" />
       </div>
     </div>
   );
 }
 
-function StatCard({ value, label, emoji }: { value: number | string; label: string; emoji: string }) {
+function StatCard({ value, label }: { value: number | string; label: string }) {
   return (
     <div className="text-center bg-black/40 border border-white/10 rounded-xl p-4 hover:bg-white/5 transition-colors">
-      <div className="text-3xl mb-1">{emoji}</div>
       <div className="text-3xl md:text-4xl font-black text-yellow-300">{value}</div>
       <div className="text-xs font-bold text-white/70 mt-1 tracking-wider">{label}</div>
     </div>
@@ -850,37 +864,28 @@ function makePage(
 // ASYMMETRICAL LAYOUT ENGINE
 // ─────────────────────────────────────────────
 
-function layoutAsymmetrical(panels: ComicPanel[]): GridPanel[] {
+function layoutAsymmetrical(panels: ComicPanel[], cols: number): GridPanel[] {
   const gridPanels: GridPanel[] = [];
-  const cols = 4;
   let row = 0;
   let col = 0;
   let hasTallPanel = false; // track if any panel on this page has rowSpan > 1
 
   for (const panel of panels) {
     let colSpan: number;
-    let rowSpan: number;
+    let rowSpan = 1;
 
     switch (panel.type) {
       case 'large':
-        colSpan = 2;
-        rowSpan = 1; // Only first panel gets rowSpan=2
-        break;
       case 'double':
         colSpan = 2;
-        rowSpan = 1;
-        break;
-      case 'medium':
-        colSpan = 1;
-        rowSpan = 1;
-        break;
-      case 'small':
-        colSpan = 1;
-        rowSpan = 1;
         break;
       default:
         colSpan = 1;
-        rowSpan = 1;
+    }
+
+    // On phones (2 columns) every panel spans the full row so photos stay big
+    if (cols === 2) {
+      colSpan = 2;
     }
 
     // Give the first panel on the page extra height for the hero effect
@@ -890,7 +895,7 @@ function layoutAsymmetrical(panels: ComicPanel[]): GridPanel[] {
     }
 
     // Medium panels also get extra height — but only if no previous tall panel overlaps
-    if (panel.type === 'medium' && !hasTallPanel) {
+    if (panel.type === 'medium' && !hasTallPanel && cols > 2) {
       rowSpan = 2;
       hasTallPanel = true;
     }
